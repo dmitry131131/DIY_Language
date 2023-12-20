@@ -1,2 +1,10 @@
-number a = 2;
-number b = 55;
+def number foo()
+{
+    number e = 3;
+    s = 0;
+}
+
+def number ss()
+{
+    dd = 0;
+}
