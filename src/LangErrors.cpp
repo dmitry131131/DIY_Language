@@ -16,6 +16,9 @@ void print_lang_error(FILE* stream, langErrorCode error)
     }while(0)
 
     PRINT_ERROR(error, LANG_FILE_OPEN_ERROR,        "Error in open file process!\n");
+    PRINT_ERROR(error, READ_FROM_LANG_FILE_ERROR,   "Error in reading file process!\n");
+    PRINT_ERROR(error, DTOR_LANG_BUFFER_ERROR,      "Error in buffer destructor!\n");
+    PRINT_ERROR(error, WRONG_LANG_SYNTAX,           "Wrong lang syntax!\n");
 
     #undef PRINT_ERROR
 }

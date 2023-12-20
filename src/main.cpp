@@ -6,7 +6,14 @@
 int main()
 {
     TreeData tree = {};
+    langErrorCode error = NO_LANG_ERRORS;
     
-    lang_parser("text.txt", &tree);
+    if ((error = lang_parser("text.txt", &tree)))
+    {
+        print_lang_error(stderr, error);
+    }
+
+    tree_dump(&tree);
+    tree_dtor(&tree);
     return 0;
 }
