@@ -49,6 +49,8 @@ static TreeSegment* getOperatorList(LangTokenArray* token_array, langErrorCode* 
 
 static TreeSegment* getOper(LangTokenArray* token_array, langErrorCode* error);
 
+static TreeSegment* getFuncCall(LangTokenArray* token_array, langErrorCode* error);
+
 langErrorCode lang_parser(const char* filename, TreeData* tree)
 {
     assert(filename);
@@ -408,6 +410,9 @@ static TreeSegment* getFuncDeclaration(LangTokenArray* token_array, langErrorCod
         del_segment(val);
         return val2;
     }
+    
+    data.stringPtr = NULL;
+    val2 = CreateNode(PARAMETERS, data, nullptr, val2);
 
     val->right = val2;
     data.K_word = KEY_NEXT;
@@ -628,8 +633,16 @@ static TreeSegment* getPriority1(LangTokenArray* token_array, langErrorCode* err
 
         val = CreateNode(KEYWORD, data, val, nullptr);
     }
+    //TODO сделать правильное распознавание идентификатора через таблицу имён
     else if ((token_array->Array)[token_array->Pointer].type == ID)
     {
+        if ((token_array->Array)[token_array->Pointer + 1].type        == KEY_WORD
+        &&  (token_array->Array)[token_array->Pointer + 1].data.K_word == KEY_OBR)
+        {
+            val = getFuncCall(token_array, error);
+            if (*error) return val;
+        }
+
         SegmentData data = {.stringPtr = strdup((token_array->Array)[token_array->Pointer].data.text)};
         val = CreateNode(IDENTIFIER, data, nullptr, nullptr);
     }
@@ -644,6 +657,41 @@ static TreeSegment* getPriority1(LangTokenArray* token_array, langErrorCode* err
         return val;
     }
 
+    (token_array->Pointer)++;
+
+    return val;
+}
+
+static TreeSegment* getFuncCall(LangTokenArray* token_array, langErrorCode* error)
+{
+    assert(token_array);
+    assert(error);
+
+    TreeSegment* val  = nullptr;
+    TreeSegment* val2 = nullptr;
+
+    if ((token_array->Array)[token_array->Pointer].type != ID)
+    {
+        *error = WRONG_LANG_SYNTAX;
+        return val;
+    }
+    SegmentData data = {};
+    val = CreateNode(CALL, data, nullptr, nullptr);
+
+    data.stringPtr = strdup((token_array->Array)[token_array->Pointer].data.text);
+    val2 = CreateNode(IDENTIFIER, data, nullptr, nullptr);
+    (token_array->Pointer)++;
+
+    val->right = val2;
+
+    data.K_word = KEY_ENUM;
+    val2 = CreateNode(KEYWORD, data, nullptr, nullptr);
+
+    val->left = val2;
+
+    CHECK_BRACKET(KEY_OBR, del_segment(val););
+    (token_array->Pointer)++;
+    CHECK_BRACKET(KEY_CBR, del_segment(val););
     (token_array->Pointer)++;
 
     return val;
@@ -688,11 +736,16 @@ static TreeSegment* getWhile(LangTokenArray* token_array, langErrorCode* error)
     assert(error);
 
     CHECK_KEY_WORD(KEY_WHILE);
+    (token_array->Pointer)++;
 
     CHECK_BRACKET(KEY_OBR, ;);
+    (token_array->Pointer)++;
+
     TreeSegment* val = getE(token_array, error);
     if (*error) return val;
+
     CHECK_BRACKET(KEY_CBR, del_segment(val););
+    (token_array->Pointer)++;
 
     TreeSegment* val2 = getOper(token_array, error);
     if (*error)
@@ -719,8 +772,17 @@ static TreeSegment* getOper(LangTokenArray* token_array, langErrorCode* error)
 
     if ((token_array->Array)[token_array->Pointer].type == ID)
     {
-        val = getAE(token_array, error);
-        if (*error) return val;
+        if ((token_array->Array)[token_array->Pointer + 1].type        == KEY_WORD
+        &&  (token_array->Array)[token_array->Pointer + 1].data.K_word == KEY_OBR)
+        {
+            val = getFuncCall(token_array, error);
+            if (*error) return val;
+        }
+        else
+        {
+            val = getAE(token_array, error);
+            if (*error) return val;
+        }
         
         if ((token_array->Array)[token_array->Pointer].type        != KEY_WORD
         ||  (token_array->Array)[token_array->Pointer].data.K_word != KEY_NEXT)

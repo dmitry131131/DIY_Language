@@ -32,6 +32,18 @@ struct LangTokenArray {
     size_t     size;
 };
 
+enum LangNameType {
+    NO_LANG_TYPE,
+    VARIABLE,
+    FUNCTION
+};
+
+struct LangNameTableUnit {
+    char*        name;
+    int          number;
+    LangNameType type;
+};
+
 langErrorCode lang_parser(const char* filename, TreeData* tree);
 
 
