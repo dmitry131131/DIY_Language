@@ -8,6 +8,7 @@
 #include "DataBuffer.h"
 #include "LangErrors.h"
 #include "FrontEnd.h"
+#include "Output.h"
 
 static langErrorCode lang_lexer(LangTokenArray* token_array, outputBuffer* buffer);
 
@@ -93,6 +94,8 @@ langErrorCode lang_parser(const char* filename, TreeData* tree)
         printf("In position: %lu\n", token_array.Array[token_array.Pointer].position);
         RETURN(error);
     }
+
+    write_lang_tree_to_file("out.txt", tree);
 
     RETURN(NO_LANG_ERRORS);
     #undef RETURN

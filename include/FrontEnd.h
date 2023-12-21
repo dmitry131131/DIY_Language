@@ -44,8 +44,12 @@ struct LangNameTableUnit {
     LangNameType type;
 };
 
+struct LangNameTable {
+    LangNameTableUnit* Table;
+    size_t Pointer;
+    size_t size;
+};
+
 langErrorCode lang_parser(const char* filename, TreeData* tree);
-
-
 
 #endif
