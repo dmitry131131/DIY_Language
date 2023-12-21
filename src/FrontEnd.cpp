@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <wchar.h>
 
 #include "Tree.h"
 #include "DataBuffer.h"
@@ -11,46 +12,27 @@
 #include "Output.h"
 
 static langErrorCode lang_lexer(LangTokenArray* token_array, outputBuffer* buffer);
-
 static langErrorCode read_lang_punct_command(outputBuffer* buffer, LangToken* token);
-
 static langErrorCode token_array_dtor(LangTokenArray* token_array);
-
 static langErrorCode read_lang_text_command(outputBuffer* buffer, LangToken* token);
-
-static TreeSegment* getDecl(LangTokenArray* token_array, langErrorCode* error);
-
-static TreeSegment* getFuncDeclaration(LangTokenArray* token_array, langErrorCode* error);
-
-static TreeSegment* getDeclaration(LangTokenArray* token_array, langErrorCode* error);
-
-static TreeSegment* MainTrans(LangTokenArray* token_array, langErrorCode* error);
-
+static TreeSegment*  getDecl(LangTokenArray* token_array, langErrorCode* error);
+static TreeSegment*  getFuncDeclaration(LangTokenArray* token_array, langErrorCode* error);
+static TreeSegment*  getDeclaration(LangTokenArray* token_array, langErrorCode* error);
+static TreeSegment*  MainTrans(LangTokenArray* token_array, langErrorCode* error);
 static langErrorCode getG(TreeData* tree, LangTokenArray* token_array);
-
-static TreeSegment* CreateNode(SegmemtType type, SegmentData data, TreeSegment* left, TreeSegment* right);
-
-static TreeSegment* getE(LangTokenArray* token_array, langErrorCode* error);
-
-static TreeSegment* getAE(LangTokenArray* token_array, langErrorCode* error);
-
-static TreeSegment* getPriority1(LangTokenArray* token_array, langErrorCode* error);
-
-static TreeSegment* getPriority2(LangTokenArray* token_array, langErrorCode* error);
-
-static TreeSegment* getPriority3(LangTokenArray* token_array, langErrorCode* error);
-
-static TreeSegment* getPriority4(LangTokenArray* token_array, langErrorCode* error);
-
-static TreeSegment* getIf(LangTokenArray* token_array, langErrorCode* error);
-
-static TreeSegment* getWhile(LangTokenArray* token_array, langErrorCode* error);
-
-static TreeSegment* getOperatorList(LangTokenArray* token_array, langErrorCode* error);
-
-static TreeSegment* getOper(LangTokenArray* token_array, langErrorCode* error);
-
-static TreeSegment* getFuncCall(LangTokenArray* token_array, langErrorCode* error);
+static TreeSegment*  CreateNode(SegmemtType type, SegmentData data, TreeSegment* left, TreeSegment* right);
+static TreeSegment*  getE(LangTokenArray* token_array, langErrorCode* error);
+static TreeSegment*  getAE(LangTokenArray* token_array, langErrorCode* error);
+static TreeSegment*  getPriority1(LangTokenArray* token_array, langErrorCode* error);
+static TreeSegment*  getPriority2(LangTokenArray* token_array, langErrorCode* error);
+static TreeSegment*  getPriority3(LangTokenArray* token_array, langErrorCode* error);
+static TreeSegment*  getPriority4(LangTokenArray* token_array, langErrorCode* error);
+static TreeSegment*  getIf(LangTokenArray* token_array, langErrorCode* error);
+static TreeSegment*  getWhile(LangTokenArray* token_array, langErrorCode* error);
+static TreeSegment*  getOperatorList(LangTokenArray* token_array, langErrorCode* error);
+static TreeSegment*  getOper(LangTokenArray* token_array, langErrorCode* error);
+static TreeSegment*  getFuncCall(LangTokenArray* token_array, langErrorCode* error);
+static TreeSegment*  getOut(LangTokenArray* token_array, langErrorCode* error);
 
 langErrorCode lang_parser(const char* filename, TreeData* tree)
 {
@@ -137,18 +119,18 @@ static langErrorCode lang_lexer(LangTokenArray* token_array, outputBuffer* buffe
 
             count++;
         }
-        else if (isalpha(buffer->customBuffer[buffer->bufferPointer]))
+        else if (ispunct(buffer->customBuffer[buffer->bufferPointer]))
         {
-            if ((error = read_lang_text_command(buffer, &(token_array->Array)[count])))
+            if ((error = read_lang_punct_command(buffer, &(token_array->Array)[count])))
             {
                 return error;
             }
 
             count++;
         }
-        else if (ispunct(buffer->customBuffer[buffer->bufferPointer]))
+        else if (!isspace(buffer->customBuffer[buffer->bufferPointer]))
         {
-            if ((error = read_lang_punct_command(buffer, &(token_array->Array)[count])))
+            if ((error = read_lang_text_command(buffer, &(token_array->Array)[count])))
             {
                 return error;
             }
@@ -254,7 +236,9 @@ static langErrorCode read_lang_text_command(outputBuffer* buffer, LangToken* tok
 
     token->position = buffer->bufferPointer;
 
-    while(isalpha(buffer->customBuffer[buffer->bufferPointer]))
+    while(!isspace(buffer->customBuffer[buffer->bufferPointer])
+    &&    !ispunct(buffer->customBuffer[buffer->bufferPointer])
+    &&    !isdigit(buffer->customBuffer[buffer->bufferPointer]))
     {
         cmd[len] = buffer->customBuffer[buffer->bufferPointer];
         len++;
@@ -262,18 +246,20 @@ static langErrorCode read_lang_text_command(outputBuffer* buffer, LangToken* tok
     }
     cmd[len] = '\0';
 
-    if (!strcmp(cmd, "sin"))
+    if (!strcmp(cmd, "синус"))
     {
         token->type        = KEY_WORD;
         token->data.K_word = KEY_SIN;
     }
-    NEW_KEY_WORD("cos",     KEY_COS)
-    NEW_KEY_WORD("if",      KEY_IF)
-    NEW_KEY_WORD("while",   KEY_WHILE)
-    NEW_KEY_WORD("floor",   KEY_FLOOR)
-    NEW_KEY_WORD("diff",    KEY_DIFF)
-    NEW_KEY_WORD("number",  KEY_NUMBER)
-    NEW_KEY_WORD("def",     KEY_DEF)
+    NEW_KEY_WORD("косинус",             KEY_COS)
+    NEW_KEY_WORD("компаратор",          KEY_IF)
+    NEW_KEY_WORD("контур",              KEY_WHILE)
+    NEW_KEY_WORD("заземлить",           KEY_FLOOR)
+    NEW_KEY_WORD("разобрать",           KEY_DIFF)
+    NEW_KEY_WORD("бит",                 KEY_NUMBER)
+    NEW_KEY_WORD("схема",               KEY_DEF)
+    NEW_KEY_WORD("впаять",              KEY_IN)
+    NEW_KEY_WORD("вывести",             KEY_OUT)
     else
     {
         token->type      = ID;
@@ -365,11 +351,12 @@ static TreeSegment* getDeclaration(LangTokenArray* token_array, langErrorCode* e
     }                                                                       \
 }while(0)
 
-#define CHECK_KEY_WORD(KW) do{                                              \
+#define CHECK_KEY_WORD(KW, DEL_CODE) do{                                    \
     if ((token_array->Array)[token_array->Pointer].type != KEY_WORD         \
     ||  (token_array->Array)[token_array->Pointer].data.K_word != KW)       \
     {                                                                       \
         *error = WRONG_LANG_SYNTAX;                                         \
+        DEL_CODE                                                            \
         return nullptr;                                                     \
     }                                                                       \
 }while(0)
@@ -379,11 +366,11 @@ static TreeSegment* getFuncDeclaration(LangTokenArray* token_array, langErrorCod
     assert(token_array);
     assert(error);
 
-    CHECK_KEY_WORD(KEY_DEF);
+    CHECK_KEY_WORD(KEY_DEF, ;);
 
     (token_array->Pointer)++;
     
-    CHECK_KEY_WORD(KEY_NUMBER);
+    CHECK_KEY_WORD(KEY_NUMBER, ;);
     
     SegmentData data = {.K_word = (token_array->Array)[token_array->Pointer].data.K_word};
     TreeSegment* val2 = CreateNode(KEYWORD, data, nullptr, nullptr);
@@ -418,6 +405,7 @@ static TreeSegment* getFuncDeclaration(LangTokenArray* token_array, langErrorCod
     val2 = CreateNode(PARAMETERS, data, nullptr, val2);
 
     val->right = val2;
+
     data.K_word = KEY_NEXT;
     val = CreateNode(KEYWORD, data, val, nullptr); 
 
@@ -429,7 +417,7 @@ static TreeSegment* getDecl(LangTokenArray* token_array, langErrorCode* error)
     assert(token_array);
     assert(error);
 
-    CHECK_KEY_WORD(KEY_NUMBER);
+    CHECK_KEY_WORD(KEY_NUMBER, ;);
 
     SegmentData data = {.K_word = (token_array->Array)[token_array->Pointer].data.K_word};
     TreeSegment* val = CreateNode(KEYWORD, data, nullptr, nullptr);
@@ -620,7 +608,7 @@ static TreeSegment* getPriority1(LangTokenArray* token_array, langErrorCode* err
         SegmentData data = {.K_word = (token_array->Array)[token_array->Pointer].data.K_word};
         (token_array->Pointer)++;
 
-        if (data.K_word != KEY_SIN && data.K_word != KEY_COS && data.K_word != KEY_FLOOR)
+        if (data.K_word != KEY_SIN && data.K_word != KEY_COS && data.K_word != KEY_FLOOR && data.K_word != KEY_IN)
         {
             *error = WRONG_LANG_SYNTAX;
             return nullptr;
@@ -628,13 +616,14 @@ static TreeSegment* getPriority1(LangTokenArray* token_array, langErrorCode* err
 
         CHECK_BRACKET(KEY_OBR, ;);
         (token_array->Pointer)++;
-
-        val = getE(token_array, error);
-        if (*error) return val;
-
+        if (data.K_word != KEY_IN)
+        {
+            val = getE(token_array, error);
+            if (*error) return val;
+        }
         CHECK_BRACKET(KEY_CBR, del_segment(val););
 
-        val = CreateNode(KEYWORD, data, val, nullptr);
+        val = CreateNode(KEYWORD, data, nullptr, val);
     }
     //TODO сделать правильное распознавание идентификатора через таблицу имён
     else if ((token_array->Array)[token_array->Pointer].type == ID)
@@ -661,6 +650,37 @@ static TreeSegment* getPriority1(LangTokenArray* token_array, langErrorCode* err
     }
 
     (token_array->Pointer)++;
+
+    return val;
+}
+
+static TreeSegment* getOut(LangTokenArray* token_array, langErrorCode* error)
+{
+    assert(token_array);
+    assert(error);
+
+    TreeSegment* val = nullptr;
+
+    CHECK_KEY_WORD(KEY_OUT, ;);
+    (token_array->Pointer)++;
+
+    CHECK_BRACKET(KEY_OBR, ;);
+    (token_array->Pointer)++;
+
+    val = getE(token_array, error);
+    if (*error) return val;
+
+    CHECK_BRACKET(KEY_CBR, del_segment(val););
+    (token_array->Pointer)++;
+
+    CHECK_KEY_WORD(KEY_NEXT, del_segment(val););
+    (token_array->Pointer)++;
+
+    SegmentData data = {.K_word = KEY_OUT};
+    val = CreateNode(KEYWORD, data, nullptr, val);
+
+    data.K_word = KEY_NEXT;
+    val = CreateNode(KEYWORD, data, val ,nullptr);
 
     return val;
 }
@@ -705,7 +725,7 @@ static TreeSegment* getIf(LangTokenArray* token_array, langErrorCode* error)
     assert(token_array);
     assert(error);
 
-    CHECK_KEY_WORD(KEY_IF);
+    CHECK_KEY_WORD(KEY_IF, ;);
     (token_array->Pointer)++;
 
     CHECK_BRACKET(KEY_OBR, ;);
@@ -738,7 +758,7 @@ static TreeSegment* getWhile(LangTokenArray* token_array, langErrorCode* error)
     assert(token_array);
     assert(error);
 
-    CHECK_KEY_WORD(KEY_WHILE);
+    CHECK_KEY_WORD(KEY_WHILE, ;);
     (token_array->Pointer)++;
 
     CHECK_BRACKET(KEY_OBR, ;);
@@ -787,13 +807,7 @@ static TreeSegment* getOper(LangTokenArray* token_array, langErrorCode* error)
             if (*error) return val;
         }
         
-        if ((token_array->Array)[token_array->Pointer].type        != KEY_WORD
-        ||  (token_array->Array)[token_array->Pointer].data.K_word != KEY_NEXT)
-        {
-            *error = WRONG_LANG_SYNTAX;
-            del_segment(val);
-            return nullptr;
-        }
+        CHECK_KEY_WORD(KEY_NEXT, ;);
         (token_array->Pointer)++;
 
         SegmentData data = {.K_word = KEY_NEXT};
@@ -819,6 +833,11 @@ static TreeSegment* getOper(LangTokenArray* token_array, langErrorCode* error)
             if (*error) return val;
             break;
 
+        case KEY_OUT:
+            val = getOut(token_array, error);
+            if (*error) return val;
+            break;
+
         case KEY_O_CURBR:
             (token_array->Pointer)++;
 
@@ -827,6 +846,7 @@ static TreeSegment* getOper(LangTokenArray* token_array, langErrorCode* error)
             CHECK_BRACKET(KEY_C_CURBR, del_segment(val););
             (token_array->Pointer)++;
             break;
+
         case KEY_C_CURBR:
             val = CreateNode(KEYWORD, data, nullptr, nullptr);
             break;
