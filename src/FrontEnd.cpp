@@ -198,13 +198,14 @@ static langErrorCode read_lang_punct_command(outputBuffer* buffer, LangToken* to
     RECOGNIZE_SINGLE_COMMAND(';', KEY_NEXT)
     RECOGNIZE_SINGLE_COMMAND(',', KEY_ENUM)
 
-    RECOGNIZE_SINGLE_OR_DOUBLE_COMMAND('=', '=', KEY_EQUAL, KEY_ASSIGMENT)
+    //RECOGNIZE_SINGLE_OR_DOUBLE_COMMAND('=', '=', KEY_EQUAL, KEY_ASSIGMENT)
     RECOGNIZE_SINGLE_OR_DOUBLE_COMMAND('<', '=', KEY_LESS_EQUAL, KEY_LESS)
     RECOGNIZE_SINGLE_OR_DOUBLE_COMMAND('>', '=', KEY_MORE_EQUAL, KEY_MORE)
     RECOGNIZE_SINGLE_OR_DOUBLE_COMMAND('!', '=', KEY_NOT_EQUAL, KEY_NOT)
 
     RECOGNIZE_DOUBLE_COMMAND('|', KEY_OR)
     RECOGNIZE_DOUBLE_COMMAND('&', KEY_AND)
+    RECOGNIZE_DOUBLE_COMMAND('=', KEY_EQUAL)
 
     default:
         return WRONG_LANG_SYNTAX;
@@ -260,6 +261,7 @@ static langErrorCode read_lang_text_command(outputBuffer* buffer, LangToken* tok
     NEW_KEY_WORD("схема",               KEY_DEF)
     NEW_KEY_WORD("впаять",              KEY_IN)
     NEW_KEY_WORD("вывести",             KEY_OUT)
+    NEW_KEY_WORD("приклеить",           KEY_ASSIGMENT)
     else
     {
         token->type      = ID;
