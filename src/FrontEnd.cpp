@@ -610,22 +610,30 @@ static TreeSegment* getPriority1(LangTokenArray* token_array, langErrorCode* err
         SegmentData data = {.K_word = (token_array->Array)[token_array->Pointer].data.K_word};
         (token_array->Pointer)++;
 
-        if (data.K_word != KEY_SIN && data.K_word != KEY_COS && data.K_word != KEY_FLOOR && data.K_word != KEY_IN)
+        if (data.K_word != KEY_SIN && data.K_word != KEY_COS && data.K_word != KEY_FLOOR && data.K_word != KEY_IN && data.K_word != KEY_OBR)
         {
             *error = WRONG_LANG_SYNTAX;
             return nullptr;
         }
 
-        CHECK_BRACKET(KEY_OBR, ;);
-        (token_array->Pointer)++;
-        if (data.K_word != KEY_IN)
+        if (data.K_word == KEY_OBR)
         {
             val = getE(token_array, error);
             if (*error) return val;
+            CHECK_BRACKET(KEY_CBR, del_segment(val););
         }
-        CHECK_BRACKET(KEY_CBR, del_segment(val););
-
-        val = CreateNode(KEYWORD, data, nullptr, val);
+        else
+        {
+            CHECK_BRACKET(KEY_OBR, ;);
+            (token_array->Pointer)++;
+            if (data.K_word != KEY_IN)
+            {
+                val = getE(token_array, error);
+                if (*error) return val;
+            }
+            CHECK_BRACKET(KEY_CBR, del_segment(val););
+            val = CreateNode(KEYWORD, data, nullptr, val);
+        }
     }
     //TODO сделать правильное распознавание идентификатора через таблицу имён
     else if ((token_array->Array)[token_array->Pointer].type == ID)
