@@ -34,6 +34,10 @@ static TreeSegment*  getOper(LangTokenArray* token_array, langErrorCode* error);
 static TreeSegment*  getFuncCall(LangTokenArray* token_array, langErrorCode* error);
 static TreeSegment*  getOut(LangTokenArray* token_array, langErrorCode* error);
 
+//#################################################################################################//
+//------------------------------------> Parser functions <-----------------------------------------//
+//#################################################################################################//
+
 langErrorCode lang_parser(const char* filename, TreeData* tree)
 {
     assert(filename);
@@ -82,22 +86,6 @@ langErrorCode lang_parser(const char* filename, TreeData* tree)
     RETURN(NO_LANG_ERRORS);
     #undef RETURN
 }
-
-static langErrorCode token_array_dtor(LangTokenArray* token_array)
-{
-    assert(token_array);
-
-    for (size_t i = 0; i < token_array->size; i++)
-    {
-        if (token_array->Array[i].type == ID)
-        {
-            free(token_array->Array[i].data.text);
-        }
-    }
-
-    free(token_array->Array);
-    return NO_LANG_ERRORS;
-}   
 
 static langErrorCode lang_lexer(LangTokenArray* token_array, outputBuffer* buffer)
 {
@@ -273,16 +261,9 @@ static langErrorCode read_lang_text_command(outputBuffer* buffer, LangToken* tok
     #undef NEW_KEY_WORD
 }
 
-static TreeSegment* CreateNode(SegmemtType type, SegmentData data, TreeSegment* left, TreeSegment* right)
-{
-    TreeSegment* seg = new_segment(type, sizeof(int));
-
-    seg->data  = data;
-    seg->left  = left;
-    seg->right = right;
-
-    return seg;
-}
+//#################################################################################################//
+//--------------------------------> Recurse descent functions <------------------------------------//
+//#################################################################################################//
 
 static langErrorCode getG(TreeData* tree, LangTokenArray* token_array)
 {
@@ -902,3 +883,34 @@ static TreeSegment* getOperatorList(LangTokenArray* token_array, langErrorCode* 
 }
 
 #undef CHECK_BRACKET
+
+//#################################################################################################//
+//------------------------------------> Shared functions <-----------------------------------------//
+//#################################################################################################//
+
+static langErrorCode token_array_dtor(LangTokenArray* token_array)
+{
+    assert(token_array);
+
+    for (size_t i = 0; i < token_array->size; i++)
+    {
+        if (token_array->Array[i].type == ID)
+        {
+            free(token_array->Array[i].data.text);
+        }
+    }
+
+    free(token_array->Array);
+    return NO_LANG_ERRORS;
+}   
+
+static TreeSegment* CreateNode(SegmemtType type, SegmentData data, TreeSegment* left, TreeSegment* right)
+{
+    TreeSegment* seg = new_segment(type, sizeof(int));
+
+    seg->data  = data;
+    seg->left  = left;
+    seg->right = right;
+
+    return seg;
+}
