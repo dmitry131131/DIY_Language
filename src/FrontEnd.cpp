@@ -34,6 +34,10 @@ static TreeSegment*  getOper(LangTokenArray* token_array, langErrorCode* error);
 static TreeSegment*  getFuncCall(LangTokenArray* token_array, langErrorCode* error);
 static TreeSegment*  getOut(LangTokenArray* token_array, langErrorCode* error);
 
+static langErrorCode name_table_ctor(LangNameTable* name_table);
+static langErrorCode name_table_realloc(LangNameTable* name_table);
+static langErrorCode add_to_name_table(LangNameTable* name_table, char** name, LangNameType type);
+
 //#################################################################################################//
 //------------------------------------> Parser functions <-----------------------------------------//
 //#################################################################################################//
@@ -140,10 +144,10 @@ static langErrorCode read_lang_punct_command(outputBuffer* buffer, LangToken* to
     assert(buffer);
     assert(token);
 
-    #define RECOGNIZE_SINGLE_COMMAND(CMD, KW)                   \
-        case CMD:                                               \
-            token->type = KEY_WORD;                             \
-            token->data.K_word = KW;                            \
+    #define RECOGNIZE_SINGLE_COMMAND(CMD, KW)                                           \
+        case CMD:                                                                       \
+            token->type = KEY_WORD;                                                     \
+            token->data.K_word = KW;                                                    \
             break;
 
     #define RECOGNIZE_SINGLE_OR_DOUBLE_COMMAND(FIRST, SECOND, IF_DOUBLE, IF_SINGLE)     \
@@ -913,4 +917,60 @@ static TreeSegment* CreateNode(SegmemtType type, SegmentData data, TreeSegment* 
     seg->right = right;
 
     return seg;
+}
+
+static langErrorCode name_table_ctor(LangNameTable* name_table)
+{
+    assert(name_table);
+    langErrorCode error = NO_LANG_ERRORS;
+
+    name_table->Table = (LangNameTableUnit*) calloc(START_NAME_TABLE_SIZE, sizeof(LangNameTableUnit));
+    if (!name_table->Table)
+    {
+        error = NAME_TABLE_ALLOC_MEMORY_ERROR;
+    }
+
+    name_table->Pointer = 0;
+    name_table->size = START_NAME_TABLE_SIZE;
+
+    return error;
+}
+
+static langErrorCode name_table_realloc(LangNameTable* name_table)
+{
+    assert(name_table);
+    langErrorCode error = NO_LANG_ERRORS;
+
+    name_table->Table = (LangNameTableUnit*) realloc(name_table->Table, 2 * name_table->size * sizeof(LangNameTableUnit));
+    if (!name_table->Table)
+    {
+        error = NAME_TABLE_ALLOC_MEMORY_ERROR;
+    }
+
+    name_table->size = 2 * name_table->size;
+
+    return error;
+}
+
+static langErrorCode add_to_name_table(LangNameTable* name_table, char** name, LangNameType type)
+{
+    assert(name_table);
+    assert(name);
+    langErrorCode error = NO_LANG_ERRORS;
+
+    if (name_table->Pointer >= name_table->size)
+    {
+        if ((error = name_table_realloc(name_table)))
+        {
+            return error;
+        }
+    }
+
+    name_table->Table[name_table->Pointer].name   = *name;
+    name_table->Table[name_table->Pointer].number = (int) name_table->Pointer;
+    name_table->Table[name_table->Pointer].type   = type;
+
+    (name_table->Pointer)++;
+
+    return error;
 }

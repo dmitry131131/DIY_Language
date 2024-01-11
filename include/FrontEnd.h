@@ -1,7 +1,8 @@
 #ifndef FRONT_END_H
 #define FRONT_END_H
 
-const size_t MAX_LANG_COMMAND_LEN = 250;
+const size_t MAX_LANG_COMMAND_LEN  = 250;
+const size_t START_NAME_TABLE_SIZE = 20;
 
 enum LangTokenType {
     NO_TYPE,
