@@ -6,9 +6,15 @@
 int main()
 {
     TreeData tree = {};
+    LangNameTableArray table = {};
     langErrorCode error = NO_LANG_ERRORS;
     
-    if ((error = lang_parser("text.txt", &tree)))
+    if ((error = name_table_array_ctor(&table)))
+    {
+        print_lang_error(stderr, error);
+    }
+
+    if ((error = lang_parser("text.txt", &tree, &table)))
     {
         print_lang_error(stderr, error);
     }

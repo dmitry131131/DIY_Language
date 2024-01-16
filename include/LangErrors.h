@@ -8,7 +8,8 @@ enum langErrorCode
     READ_FROM_LANG_FILE_ERROR            = 1 << 1,
     DTOR_LANG_BUFFER_ERROR               = 1 << 2,
     WRONG_LANG_SYNTAX                    = 1 << 3,
-    NAME_TABLE_ALLOC_MEMORY_ERROR        = 1 << 4
+    NAME_TABLE_ALLOC_MEMORY_ERROR        = 1 << 4,
+    BAD_NAME_TABLE                       = 1 << 5
 };
 
 void print_lang_error(FILE* stream, langErrorCode error);

@@ -11,15 +11,19 @@
 #include "FrontEnd.h"
 #include "Output.h"
 
+//TODO Сделать парсинг с помощью таблиц имён - в мейне есть массив с таблицами имён, для каждой функции создаётся своя таблица имён.
+// глобальная таблица имён имеет индекс 0
+//TODO Сделать дамп массива с таблицами имён в виде графа
+
 static langErrorCode lang_lexer(LangTokenArray* token_array, outputBuffer* buffer);
 static langErrorCode read_lang_punct_command(outputBuffer* buffer, LangToken* token);
 static langErrorCode token_array_dtor(LangTokenArray* token_array);
 static langErrorCode read_lang_text_command(outputBuffer* buffer, LangToken* token);
 static TreeSegment*  getDecl(LangTokenArray* token_array, langErrorCode* error);
 static TreeSegment*  getFuncDeclaration(LangTokenArray* token_array, langErrorCode* error);
-static TreeSegment*  getDeclaration(LangTokenArray* token_array, langErrorCode* error);
-static TreeSegment*  MainTrans(LangTokenArray* token_array, langErrorCode* error);
-static langErrorCode getG(TreeData* tree, LangTokenArray* token_array);
+static TreeSegment*  getDeclaration(LangTokenArray* token_array, langErrorCode* error, LangNameTableArray* table_array);
+static TreeSegment*  MainTrans(LangTokenArray* token_array, langErrorCode* error, LangNameTableArray* table_array);
+static langErrorCode getG(TreeData* tree, LangTokenArray* token_array, LangNameTableArray* table_array);
 static TreeSegment*  CreateNode(SegmemtType type, SegmentData data, TreeSegment* left, TreeSegment* right);
 static TreeSegment*  getE(LangTokenArray* token_array, langErrorCode* error);
 static TreeSegment*  getAE(LangTokenArray* token_array, langErrorCode* error);
@@ -34,7 +38,6 @@ static TreeSegment*  getOper(LangTokenArray* token_array, langErrorCode* error);
 static TreeSegment*  getFuncCall(LangTokenArray* token_array, langErrorCode* error);
 static TreeSegment*  getOut(LangTokenArray* token_array, langErrorCode* error);
 
-static langErrorCode name_table_ctor(LangNameTable* name_table);
 static langErrorCode name_table_realloc(LangNameTable* name_table);
 static langErrorCode add_to_name_table(LangNameTable* name_table, char** name, LangNameType type);
 
@@ -42,10 +45,11 @@ static langErrorCode add_to_name_table(LangNameTable* name_table, char** name, L
 //------------------------------------> Parser functions <-----------------------------------------//
 //#################################################################################################//
 
-langErrorCode lang_parser(const char* filename, TreeData* tree)
+langErrorCode lang_parser(const char* filename, TreeData* tree, LangNameTableArray* table_array)
 {
     assert(filename);
     assert(tree);
+    assert(table_array);
 
     #define RETURN(code) do{                \
         token_array_dtor(&token_array);     \
@@ -79,13 +83,13 @@ langErrorCode lang_parser(const char* filename, TreeData* tree)
         RETURN(error);
     }
 
-    if ((error = getG(tree, &token_array)))
+    if ((error = getG(tree, &token_array, table_array)))
     {
         printf("In position: %lu\n", token_array.Array[token_array.Pointer].position);
         RETURN(error);
     }
 
-    write_lang_tree_to_file("out.txt", tree);
+    write_lang_tree_to_file("out.txt", tree);  // Это должно быть вне этой функции
 
     RETURN(NO_LANG_ERRORS);
     #undef RETURN
@@ -269,36 +273,43 @@ static langErrorCode read_lang_text_command(outputBuffer* buffer, LangToken* tok
 //--------------------------------> Recurse descent functions <------------------------------------//
 //#################################################################################################//
 
-static langErrorCode getG(TreeData* tree, LangTokenArray* token_array)
+static langErrorCode getG(TreeData* tree, LangTokenArray* token_array, LangNameTableArray* table_array)
 {
     assert(tree);
     assert(token_array);
+    assert(table_array);
 
     langErrorCode error = NO_LANG_ERRORS;
 
-    tree->root = MainTrans(token_array, &error);
+    if ((error = name_table_ctor(&(table_array->Array[0]))))
+    {
+        return error;
+    }
+    (table_array->Pointer)++;
+
+    tree->root = MainTrans(token_array, &error, table_array);
 
     return error;
 }
 
-static TreeSegment* MainTrans(LangTokenArray* token_array, langErrorCode* error)
+static TreeSegment* MainTrans(LangTokenArray* token_array, langErrorCode* error, LangNameTableArray* table_array)
 {
     assert(token_array);
     assert(error);
 
-    TreeSegment* val = getDeclaration(token_array, error);
+    TreeSegment* val = getDeclaration(token_array, error, table_array);
     if (*error) return val;
     
     if ((token_array->Pointer + 1) < token_array->size)
     {
-        val->right = MainTrans(token_array, error);
+        val->right = MainTrans(token_array, error, table_array);
         if (*error) return val;
     }
 
     return val;
 }
 
-static TreeSegment* getDeclaration(LangTokenArray* token_array, langErrorCode* error)
+static TreeSegment* getDeclaration(LangTokenArray* token_array, langErrorCode* error, LangNameTableArray* table_array)
 {
     assert(token_array);
     assert(error);
@@ -919,7 +930,7 @@ static TreeSegment* CreateNode(SegmemtType type, SegmentData data, TreeSegment* 
     return seg;
 }
 
-static langErrorCode name_table_ctor(LangNameTable* name_table)
+langErrorCode name_table_ctor(LangNameTable* name_table)
 {
     assert(name_table);
     langErrorCode error = NO_LANG_ERRORS;
@@ -932,6 +943,60 @@ static langErrorCode name_table_ctor(LangNameTable* name_table)
 
     name_table->Pointer = 0;
     name_table->size = START_NAME_TABLE_SIZE;
+
+    return error;
+}
+
+langErrorCode name_table_dtor(LangNameTable* name_table)
+{
+    assert(name_table);
+
+    if (!name_table->Table)
+    {
+        return BAD_NAME_TABLE;
+    }
+
+    free(name_table->Table);
+    name_table->Pointer = 0;
+    name_table->size    = 0;
+
+    return NO_LANG_ERRORS;
+}
+
+langErrorCode name_table_array_ctor(LangNameTableArray* table_array)
+{
+    assert(table_array);
+
+    table_array->Array = (LangNameTable*) calloc(START_NAME_TABLE_ARRAY_SIZE, sizeof(LangNameTable));
+    if (!table_array->Array)
+    {
+        return NAME_TABLE_ALLOC_MEMORY_ERROR;
+    }
+
+    table_array->Pointer = 0;
+    table_array->size    = START_NAME_TABLE_ARRAY_SIZE;
+
+    return NO_LANG_ERRORS;
+}
+
+langErrorCode name_table_array_dtor(LangNameTableArray* table_array)
+{
+    assert(table_array);
+    langErrorCode error = NO_LANG_ERRORS;
+
+    if (!table_array->Array)
+    {
+        return BAD_NAME_TABLE;
+    }
+
+    for (size_t i = 0; i < table_array->Pointer; i++)
+    {
+        name_table_dtor(&(table_array->Array[i]));
+    }
+
+    free(table_array->Array);
+    table_array->Pointer = 0;
+    table_array->size    = 0;
 
     return error;
 }
