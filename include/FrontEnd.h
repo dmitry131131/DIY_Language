@@ -41,13 +41,14 @@ enum LangNameType {
 };
 
 struct LangNameTableUnit {
-    char*        name;
-    int          number;
+    char         name[MAX_LANG_COMMAND_LEN];
+    size_t       number;
     LangNameType type;
 };
 
 struct LangNameTable {
     LangNameTableUnit* Table;
+    size_t table_number;
     size_t Pointer;
     size_t size;
 };
@@ -55,7 +56,7 @@ struct LangNameTable {
 struct LangNameTableArray 
 {
     LangNameTable* Array;
-    size_t Pointer;
+    size_t Pointer;             // Указатель pointer указывает на текущую таблицу имён, в которую нужно записывать(брать) имена переменных
     size_t size;
 };
 

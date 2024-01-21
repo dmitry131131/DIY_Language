@@ -19,27 +19,28 @@ static langErrorCode lang_lexer(LangTokenArray* token_array, outputBuffer* buffe
 static langErrorCode read_lang_punct_command(outputBuffer* buffer, LangToken* token);
 static langErrorCode token_array_dtor(LangTokenArray* token_array);
 static langErrorCode read_lang_text_command(outputBuffer* buffer, LangToken* token);
-static TreeSegment*  getDecl(LangTokenArray* token_array, langErrorCode* error);
-static TreeSegment*  getFuncDeclaration(LangTokenArray* token_array, langErrorCode* error);
-static TreeSegment*  getDeclaration(LangTokenArray* token_array, langErrorCode* error, LangNameTableArray* table_array);
-static TreeSegment*  MainTrans(LangTokenArray* token_array, langErrorCode* error, LangNameTableArray* table_array);
+static TreeSegment*  getDecl(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getFuncDeclaration(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getDeclaration(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  MainTrans(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static langErrorCode getG(TreeData* tree, LangTokenArray* token_array, LangNameTableArray* table_array);
 static TreeSegment*  CreateNode(SegmemtType type, SegmentData data, TreeSegment* left, TreeSegment* right);
-static TreeSegment*  getE(LangTokenArray* token_array, langErrorCode* error);
-static TreeSegment*  getAE(LangTokenArray* token_array, langErrorCode* error);
-static TreeSegment*  getPriority1(LangTokenArray* token_array, langErrorCode* error);
-static TreeSegment*  getPriority2(LangTokenArray* token_array, langErrorCode* error);
-static TreeSegment*  getPriority3(LangTokenArray* token_array, langErrorCode* error);
-static TreeSegment*  getPriority4(LangTokenArray* token_array, langErrorCode* error);
-static TreeSegment*  getIf(LangTokenArray* token_array, langErrorCode* error);
-static TreeSegment*  getWhile(LangTokenArray* token_array, langErrorCode* error);
-static TreeSegment*  getOperatorList(LangTokenArray* token_array, langErrorCode* error);
-static TreeSegment*  getOper(LangTokenArray* token_array, langErrorCode* error);
-static TreeSegment*  getFuncCall(LangTokenArray* token_array, langErrorCode* error);
-static TreeSegment*  getOut(LangTokenArray* token_array, langErrorCode* error);
+static TreeSegment*  getE(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getAE(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getPriority1(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getPriority2(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getPriority3(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getPriority4(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getIf(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getWhile(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getOperatorList(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getOper(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getFuncCall(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getOut(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 
 static langErrorCode name_table_realloc(LangNameTable* name_table);
 static langErrorCode add_to_name_table(LangNameTable* name_table, char** name, LangNameType type);
+static size_t find_in_name_table(const LangNameTable* name_table, const char* const* name);
 
 //#################################################################################################//
 //------------------------------------> Parser functions <-----------------------------------------//
@@ -287,29 +288,29 @@ static langErrorCode getG(TreeData* tree, LangTokenArray* token_array, LangNameT
     }
     (table_array->Pointer)++;
 
-    tree->root = MainTrans(token_array, &error, table_array);
+    tree->root = MainTrans(token_array, table_array, &error);
 
     return error;
 }
 
-static TreeSegment* MainTrans(LangTokenArray* token_array, langErrorCode* error, LangNameTableArray* table_array)
+static TreeSegment* MainTrans(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
 {
     assert(token_array);
     assert(error);
 
-    TreeSegment* val = getDeclaration(token_array, error, table_array);
+    TreeSegment* val = getDeclaration(token_array, table_array, error);
     if (*error) return val;
     
     if ((token_array->Pointer + 1) < token_array->size)
     {
-        val->right = MainTrans(token_array, error, table_array);
+        val->right = MainTrans(token_array, table_array, error);
         if (*error) return val;
     }
 
     return val;
 }
 
-static TreeSegment* getDeclaration(LangTokenArray* token_array, langErrorCode* error, LangNameTableArray* table_array)
+static TreeSegment* getDeclaration(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
 {
     assert(token_array);
     assert(error);
@@ -324,11 +325,11 @@ static TreeSegment* getDeclaration(LangTokenArray* token_array, langErrorCode* e
 
     if ((token_array->Array)[token_array->Pointer].data.K_word == KEY_DEF)
     {
-        val = getFuncDeclaration(token_array, error);
+        val = getFuncDeclaration(token_array, table_array, error);
     }
     else if ((token_array->Array)[token_array->Pointer].data.K_word == KEY_NUMBER)
     {
-        val = getDecl(token_array, error);
+        val = getDecl(token_array, table_array, error);
     }
     else
     {
@@ -359,7 +360,7 @@ static TreeSegment* getDeclaration(LangTokenArray* token_array, langErrorCode* e
     }                                                                       \
 }while(0)
 
-static TreeSegment* getFuncDeclaration(LangTokenArray* token_array, langErrorCode* error)
+static TreeSegment* getFuncDeclaration(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
 {
     assert(token_array);
     assert(error);
@@ -380,19 +381,39 @@ static TreeSegment* getFuncDeclaration(LangTokenArray* token_array, langErrorCod
         del_segment(val2);
         return nullptr;
     }
+    
     data.stringPtr = strdup((token_array->Array)[token_array->Pointer].data.text);
     TreeSegment* val = CreateNode(FUNCTION_DEFINITION, data, val2, nullptr);
     (token_array->Pointer)++;
+
+    // Запись о новой функции в глобальную таблицу имён
+    /*
+    strncpy(table_array->Array[0].Table[table_array->Array[0].Pointer].name, data.stringPtr, MAX_LANG_COMMAND_LEN);
+    table_array->Array[0].Table[table_array->Array[0].Pointer].number = token_array->Pointer;
+    table_array->Array[0].Table[table_array->Array[0].Pointer].type   = FUNCTION;
+    (table_array->Array[0].Pointer)++;
+    */
+    add_to_name_table(&(table_array->Array[0]), &(data.stringPtr), FUNCTION);
+
+    // Запись информации в локальную таблицу имён
+    if ((*error = name_table_ctor(&(table_array->Array[table_array->Pointer]))))
+    {
+        del_segment(val);
+        del_segment(val2);
+        return nullptr;
+    }
+    table_array->Array[table_array->Pointer].table_number = token_array->Pointer;
 
     CHECK_BRACKET(KEY_OBR, del_segment(val););
     (token_array->Pointer)++;
 
     // Function arguments
+    // TODO Написать парсинг аргументов функции
 
     CHECK_BRACKET(KEY_CBR, del_segment(val););
     (token_array->Pointer)++;
 
-    val2 = getOper(token_array, error);
+    val2 = getOper(token_array, table_array, error);
     if (*error)
     {
         del_segment(val);
@@ -405,12 +426,23 @@ static TreeSegment* getFuncDeclaration(LangTokenArray* token_array, langErrorCod
     val->right = val2;
 
     data.K_word = KEY_NEXT;
-    val = CreateNode(KEYWORD, data, val, nullptr); 
+    val = CreateNode(KEYWORD, data, val, nullptr);
 
     return val;
 }
 
-static TreeSegment* getDecl(LangTokenArray* token_array, langErrorCode* error)
+#define ADD_TO_NAME_TABLE(input_name_table, string_ptr, elem_type, del_code) do{            \
+    if (!find_in_name_table(input_name_table, string_ptr))                                  \
+    {                                                                                       \
+        if ((*error = add_to_name_table(input_name_table, string_ptr, elem_type)))          \
+        {                                                                                   \
+            del_code                                                                        \
+            return nullptr;                                                                 \
+        }                                                                                   \
+    }                                                                                       \
+}while(0)
+
+static TreeSegment* getDecl(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
 {   
     assert(token_array);
     assert(error);
@@ -433,7 +465,7 @@ static TreeSegment* getDecl(LangTokenArray* token_array, langErrorCode* error)
     if ((token_array->Array)[token_array->Pointer + 1].data.K_word == KEY_ASSIGMENT)
     {
         data.stringPtr = strdup((token_array->Array)[token_array->Pointer].data.text);
-        val2 = getAE(token_array, error);
+        val2 = getAE(token_array, table_array, error);
         (token_array->Pointer)++;
     }
     else if ((token_array->Array)[token_array->Pointer + 1].data.K_word == KEY_NEXT)
@@ -442,7 +474,10 @@ static TreeSegment* getDecl(LangTokenArray* token_array, langErrorCode* error)
         val2 = CreateNode(IDENTIFIER, data, nullptr, nullptr);
         data.stringPtr = strdup((token_array->Array)[token_array->Pointer].data.text);
         (token_array->Pointer) += 2;
-        printf("%lu", token_array->Pointer);
+
+        ADD_TO_NAME_TABLE(&(table_array->Array[table_array->Pointer]), &(data.stringPtr), VARIABLE, del_segment(val2););
+
+        printf("%lu", token_array->Pointer);    // Какая-то хуйня - проверить и убрать
     }
     else
     {
@@ -459,9 +494,10 @@ static TreeSegment* getDecl(LangTokenArray* token_array, langErrorCode* error)
     return val;
 }
 
-static TreeSegment* getAE(LangTokenArray* token_array, langErrorCode* error)
+static TreeSegment* getAE(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
 {
     assert(token_array);
+    assert(table_array);
     assert(error);
 
     if ((token_array->Array)[token_array->Pointer + 1].data.K_word != KEY_ASSIGMENT
@@ -474,9 +510,12 @@ static TreeSegment* getAE(LangTokenArray* token_array, langErrorCode* error)
     SegmentData data = {.stringPtr = strdup((token_array->Array)[token_array->Pointer].data.text)};
     TreeSegment* val = CreateNode(IDENTIFIER, data, nullptr, nullptr);
     
+    // BUG Глобальные переменные можно объявлять только в начале файла - это нужно исправить
+    ADD_TO_NAME_TABLE(&(table_array->Array[table_array->Pointer]), &(data.stringPtr), VARIABLE, del_segment(val););
+    
     (token_array->Pointer) += 2;
     
-    TreeSegment* val2 = getE(token_array, error);
+    TreeSegment* val2 = getE(token_array, table_array, error);
     if (*error)
     {
         del_segment(val);
@@ -500,12 +539,13 @@ static TreeSegment* getAE(LangTokenArray* token_array, langErrorCode* error)
     val = CreateNode(KEYWORD, data, val, val2);     \
 }while(0)
 
-static TreeSegment* getE(LangTokenArray* token_array, langErrorCode* error)
+static TreeSegment* getE(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
 {
     assert(token_array);
+    assert(table_array);
     assert(error);
 
-    TreeSegment* val = getPriority4(token_array, error);
+    TreeSegment* val = getPriority4(token_array, table_array, error);
     if (*error) return val;
 
     while ((token_array->Array)[token_array->Pointer].type == KEY_WORD 
@@ -515,19 +555,20 @@ static TreeSegment* getE(LangTokenArray* token_array, langErrorCode* error)
         KeyWords temp_key_word = (token_array->Array)[token_array->Pointer].data.K_word;
         (token_array->Pointer)++;
 
-        TreeSegment* val2 = getPriority4(token_array, error);
+        TreeSegment* val2 = getPriority4(token_array, table_array, error);
         CHECK_ERROR_AND_CREATE_NODE;
     }
 
     return val;
 }
 
-static TreeSegment* getPriority4(LangTokenArray* token_array, langErrorCode* error)
+static TreeSegment* getPriority4(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
 {
     assert(token_array);
+    assert(table_array);
     assert(error);
 
-    TreeSegment* val = getPriority3(token_array, error);
+    TreeSegment* val = getPriority3(token_array, table_array, error);
     if (*error) return val;
 
     if ((token_array->Array)[token_array->Pointer].type == KEY_WORD 
@@ -541,19 +582,20 @@ static TreeSegment* getPriority4(LangTokenArray* token_array, langErrorCode* err
         KeyWords temp_key_word = (token_array->Array)[token_array->Pointer].data.K_word;
         (token_array->Pointer)++;
 
-        TreeSegment* val2 = getPriority3(token_array, error);
+        TreeSegment* val2 = getPriority3(token_array, table_array, error);
         CHECK_ERROR_AND_CREATE_NODE;
     }
 
     return val;
 }
 
-static TreeSegment* getPriority3(LangTokenArray* token_array, langErrorCode* error)
+static TreeSegment* getPriority3(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
 {
     assert(token_array);
+    assert(table_array);
     assert(error);
 
-    TreeSegment* val = getPriority2(token_array, error);
+    TreeSegment* val = getPriority2(token_array, table_array, error);
     if (*error) return val;
 
     while ((token_array->Array)[token_array->Pointer].type == KEY_WORD 
@@ -563,19 +605,20 @@ static TreeSegment* getPriority3(LangTokenArray* token_array, langErrorCode* err
         KeyWords temp_key_word = (token_array->Array)[token_array->Pointer].data.K_word;
         (token_array->Pointer)++;
 
-        TreeSegment* val2 = getPriority2(token_array, error);
+        TreeSegment* val2 = getPriority2(token_array, table_array, error);
         CHECK_ERROR_AND_CREATE_NODE;
     }
 
     return val;
 }
 
-static TreeSegment* getPriority2(LangTokenArray* token_array, langErrorCode* error)
+static TreeSegment* getPriority2(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
 {
     assert(token_array);
+    assert(table_array);
     assert(error);
 
-    TreeSegment* val = getPriority1(token_array, error);
+    TreeSegment* val = getPriority1(token_array, table_array, error);
     if (*error) return val;
 
     while ((token_array->Array)[token_array->Pointer].type == KEY_WORD 
@@ -585,7 +628,7 @@ static TreeSegment* getPriority2(LangTokenArray* token_array, langErrorCode* err
         KeyWords temp_key_word = (token_array->Array)[token_array->Pointer].data.K_word;
         (token_array->Pointer)++;
 
-        TreeSegment* val2 = getPriority1(token_array, error);
+        TreeSegment* val2 = getPriority1(token_array, table_array, error);
         CHECK_ERROR_AND_CREATE_NODE;
     }
 
@@ -594,9 +637,10 @@ static TreeSegment* getPriority2(LangTokenArray* token_array, langErrorCode* err
 
 #undef CHECK_ERROR_AND_CREATE_NODE
 
-static TreeSegment* getPriority1(LangTokenArray* token_array, langErrorCode* error)
+static TreeSegment* getPriority1(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
 {
     assert(token_array);
+    assert(table_array);
     assert(error);
 
     TreeSegment* val = nullptr;
@@ -614,7 +658,7 @@ static TreeSegment* getPriority1(LangTokenArray* token_array, langErrorCode* err
 
         if (data.K_word == KEY_OBR)
         {
-            val = getE(token_array, error);
+            val = getE(token_array, table_array, error);
             if (*error) return val;
             CHECK_BRACKET(KEY_CBR, del_segment(val););
         }
@@ -624,24 +668,26 @@ static TreeSegment* getPriority1(LangTokenArray* token_array, langErrorCode* err
             (token_array->Pointer)++;
             if (data.K_word != KEY_IN)
             {
-                val = getE(token_array, error);
+                val = getE(token_array, table_array, error);
                 if (*error) return val;
             }
             CHECK_BRACKET(KEY_CBR, del_segment(val););
             val = CreateNode(KEYWORD, data, nullptr, val);
         }
-    }
-    //TODO сделать правильное распознавание идентификатора через таблицу имён
+    } 
     else if ((token_array->Array)[token_array->Pointer].type == ID)
     {
         if ((token_array->Array)[token_array->Pointer + 1].type        == KEY_WORD
         &&  (token_array->Array)[token_array->Pointer + 1].data.K_word == KEY_OBR)
         {
-            val = getFuncCall(token_array, error);
-            if (*error) return val;
+            val = getFuncCall(token_array, table_array, error);
+            if (*error) return val; // BUG после вызова function call не происходит выход из if
         }
 
         SegmentData data = {.stringPtr = strdup((token_array->Array)[token_array->Pointer].data.text)};
+
+        ADD_TO_NAME_TABLE(&(table_array->Array[table_array->Pointer]), &(data.stringPtr), VARIABLE, ;);
+
         val = CreateNode(IDENTIFIER, data, nullptr, nullptr);
     }
     else if ((token_array->Array)[token_array->Pointer].type == NUM)
@@ -660,9 +706,10 @@ static TreeSegment* getPriority1(LangTokenArray* token_array, langErrorCode* err
     return val;
 }
 
-static TreeSegment* getOut(LangTokenArray* token_array, langErrorCode* error)
+static TreeSegment* getOut(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
 {
     assert(token_array);
+    assert(table_array);
     assert(error);
 
     TreeSegment* val = nullptr;
@@ -673,7 +720,7 @@ static TreeSegment* getOut(LangTokenArray* token_array, langErrorCode* error)
     CHECK_BRACKET(KEY_OBR, ;);
     (token_array->Pointer)++;
 
-    val = getE(token_array, error);
+    val = getE(token_array, table_array, error);
     if (*error) return val;
 
     CHECK_BRACKET(KEY_CBR, del_segment(val););
@@ -691,9 +738,10 @@ static TreeSegment* getOut(LangTokenArray* token_array, langErrorCode* error)
     return val;
 }
 
-static TreeSegment* getFuncCall(LangTokenArray* token_array, langErrorCode* error)
+static TreeSegment* getFuncCall(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
 {
     assert(token_array);
+    assert(table_array);
     assert(error);
 
     TreeSegment* val  = nullptr;
@@ -708,6 +756,18 @@ static TreeSegment* getFuncCall(LangTokenArray* token_array, langErrorCode* erro
     val = CreateNode(CALL, data, nullptr, nullptr);
 
     data.stringPtr = strdup((token_array->Array)[token_array->Pointer].data.text);
+
+    size_t function_id = 0;
+    if ((function_id = find_in_name_table(&(table_array->Array[0]), &(data.stringPtr))))
+    {
+        *error = UNDEFINED_NAME;
+        return nullptr;
+    }
+    else
+    {
+        ADD_TO_NAME_TABLE(&(table_array->Array[table_array->Pointer]), &(data.stringPtr), FUNCTION, del_segment(val););
+    }
+
     val2 = CreateNode(IDENTIFIER, data, nullptr, nullptr);
     (token_array->Pointer)++;
 
@@ -720,15 +780,19 @@ static TreeSegment* getFuncCall(LangTokenArray* token_array, langErrorCode* erro
 
     CHECK_BRACKET(KEY_OBR, del_segment(val););
     (token_array->Pointer)++;
+
+    // Написать функцию парсинга аргументов функции при вызове
+
     CHECK_BRACKET(KEY_CBR, del_segment(val););
     (token_array->Pointer)++;
 
     return val;
 }
 
-static TreeSegment* getIf(LangTokenArray* token_array, langErrorCode* error)
+static TreeSegment* getIf(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
 {
     assert(token_array);
+    assert(table_array);
     assert(error);
 
     CHECK_KEY_WORD(KEY_IF, ;);
@@ -736,14 +800,14 @@ static TreeSegment* getIf(LangTokenArray* token_array, langErrorCode* error)
 
     CHECK_BRACKET(KEY_OBR, ;);
     (token_array->Pointer)++;
-
-    TreeSegment* val = getE(token_array, error);
+    // FIXME Исправить на вызов функции getAE()
+    TreeSegment* val = getE(token_array, table_array, error);
     if (*error) return val;
 
     CHECK_BRACKET(KEY_CBR, del_segment(val););
     (token_array->Pointer)++;
 
-    TreeSegment* val2 = getOper(token_array, error);
+    TreeSegment* val2 = getOper(token_array, table_array, error);
     if (*error)
     {
         del_segment(val);
@@ -759,9 +823,10 @@ static TreeSegment* getIf(LangTokenArray* token_array, langErrorCode* error)
     return val;
 }
 
-static TreeSegment* getWhile(LangTokenArray* token_array, langErrorCode* error)
+static TreeSegment* getWhile(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
 {
     assert(token_array);
+    assert(table_array);
     assert(error);
 
     CHECK_KEY_WORD(KEY_WHILE, ;);
@@ -769,14 +834,14 @@ static TreeSegment* getWhile(LangTokenArray* token_array, langErrorCode* error)
 
     CHECK_BRACKET(KEY_OBR, ;);
     (token_array->Pointer)++;
-
-    TreeSegment* val = getE(token_array, error);
+    // FIXME
+    TreeSegment* val = getE(token_array, table_array, error);
     if (*error) return val;
 
     CHECK_BRACKET(KEY_CBR, del_segment(val););
     (token_array->Pointer)++;
 
-    TreeSegment* val2 = getOper(token_array, error);
+    TreeSegment* val2 = getOper(token_array, table_array, error);
     if (*error)
     {
         del_segment(val);
@@ -792,9 +857,10 @@ static TreeSegment* getWhile(LangTokenArray* token_array, langErrorCode* error)
     return val;
 }
 
-static TreeSegment* getOper(LangTokenArray* token_array, langErrorCode* error)
+static TreeSegment* getOper(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
 {
     assert(token_array);
+    assert(table_array);
     assert(error);
 
     TreeSegment* val = nullptr;
@@ -804,12 +870,12 @@ static TreeSegment* getOper(LangTokenArray* token_array, langErrorCode* error)
         if ((token_array->Array)[token_array->Pointer + 1].type        == KEY_WORD
         &&  (token_array->Array)[token_array->Pointer + 1].data.K_word == KEY_OBR)
         {
-            val = getFuncCall(token_array, error);
+            val = getFuncCall(token_array, table_array, error);
             if (*error) return val;
         }
         else
         {
-            val = getAE(token_array, error);
+            val = getAE(token_array, table_array, error);
             if (*error) return val;
         }
         
@@ -825,29 +891,29 @@ static TreeSegment* getOper(LangTokenArray* token_array, langErrorCode* error)
         switch ((int) (token_array->Array)[token_array->Pointer].data.K_word)
         {
         case KEY_IF:
-            val = getIf(token_array, error);
+            val = getIf(token_array, table_array, error);
             if (*error) return val;
             break;
 
         case KEY_WHILE:
-            val = getWhile(token_array, error);
+            val = getWhile(token_array, table_array, error);
             if (*error) return val;
             break;
 
         case KEY_NUMBER:
-            val = getDecl(token_array, error);
+            val = getDecl(token_array, table_array, error);
             if (*error) return val;
             break;
 
         case KEY_OUT:
-            val = getOut(token_array, error);
+            val = getOut(token_array, table_array, error);
             if (*error) return val;
             break;
 
         case KEY_O_CURBR:
             (token_array->Pointer)++;
 
-            val = getOperatorList(token_array, error);
+            val = getOperatorList(token_array, table_array, error);
             if (*error) return val;
             CHECK_BRACKET(KEY_C_CURBR, del_segment(val););
             (token_array->Pointer)++;
@@ -871,12 +937,13 @@ static TreeSegment* getOper(LangTokenArray* token_array, langErrorCode* error)
     return val;
 }
 
-static TreeSegment* getOperatorList(LangTokenArray* token_array, langErrorCode* error)
+static TreeSegment* getOperatorList(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
 {
     assert(token_array);
+    assert(table_array);
     assert(error);
 
-    TreeSegment* val = getOper(token_array, error);
+    TreeSegment* val = getOper(token_array, table_array, error);
     if (*error) return val;
     
     TreeSegment* val2 = nullptr;
@@ -885,7 +952,7 @@ static TreeSegment* getOperatorList(LangTokenArray* token_array, langErrorCode* 
     || ((token_array->Array)[token_array->Pointer].type        == KEY_WORD
     &&  (token_array->Array)[token_array->Pointer].data.K_word != KEY_C_CURBR))
     {
-        val2 = getOperatorList(token_array, error);
+        val2 = getOperatorList(token_array, table_array, error);
         if (*error)
         {
             del_segment(val);
@@ -898,6 +965,7 @@ static TreeSegment* getOperatorList(LangTokenArray* token_array, langErrorCode* 
 }
 
 #undef CHECK_BRACKET
+#undef ADD_TO_NAME_TABLE
 
 //#################################################################################################//
 //------------------------------------> Shared functions <-----------------------------------------//
@@ -967,7 +1035,7 @@ langErrorCode name_table_array_ctor(LangNameTableArray* table_array)
 {
     assert(table_array);
 
-    table_array->Array = (LangNameTable*) calloc(START_NAME_TABLE_ARRAY_SIZE, sizeof(LangNameTable));
+    table_array->Array = (LangNameTable*) calloc(2, sizeof(LangNameTable));
     if (!table_array->Array)
     {
         return NAME_TABLE_ALLOC_MEMORY_ERROR;
@@ -989,7 +1057,7 @@ langErrorCode name_table_array_dtor(LangNameTableArray* table_array)
         return BAD_NAME_TABLE;
     }
 
-    for (size_t i = 0; i < table_array->Pointer; i++)
+    for (size_t i = 0; i <= table_array->Pointer; i++)
     {
         name_table_dtor(&(table_array->Array[i]));
     }
@@ -1030,12 +1098,29 @@ static langErrorCode add_to_name_table(LangNameTable* name_table, char** name, L
             return error;
         }
     }
-
-    name_table->Table[name_table->Pointer].name   = *name;
-    name_table->Table[name_table->Pointer].number = (int) name_table->Pointer;
+    printf("%s\n", *name);
+    strncpy(name_table->Table[name_table->Pointer].name, *name, MAX_LANG_COMMAND_LEN);
+    name_table->Table[name_table->Pointer].number = name_table->Pointer;
     name_table->Table[name_table->Pointer].type   = type;
 
     (name_table->Pointer)++;
 
     return error;
+}
+
+static size_t find_in_name_table(const LangNameTable* name_table, const char* const* name)
+{
+    assert(name_table);
+    assert(name);
+
+    size_t position = 0;
+    for (size_t i = 0; i < name_table->Pointer; i++)
+    {
+        if (!strcmp(*name, name_table->Table[i].name))
+        {
+            position = name_table->Table[i].number;
+        }
+    }
+
+    return position;
 }

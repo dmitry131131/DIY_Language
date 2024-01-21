@@ -18,8 +18,11 @@ int main()
     {
         print_lang_error(stderr, error);
     }
+    // FIXME Проверить добавление элементов в таблицу имён(проверка на наличие)
+    printf("%s\n", table.Array[1].Table[3].name);
 
     tree_dump(&tree);
+    name_table_array_dtor(&table);
     tree_dtor(&tree);
     return 0;
 }
