@@ -1,0 +1,28 @@
+G ::= MainTrans '\0'
+MainTrans ::= Declaration {MainTrans}?
+
+Declaration ::= FuncDecl | Declar
+
+AE ::= Identifier '=' Expretion
+
+Expretion ::= Priority4 {['и', 'или'] Priority4}*
+Priority4 ::= Priority3 {['==', '>=', '<=', '>', '<', '!='] Priority3}?
+Priority3 ::= Priority2 {['+', '-'] Priority2}*
+Priority2 ::= Priority1 {['*', '/'] Priority1}*
+Priority1 ::= ['sin', 'cos', 'floor', 'in'] '(' Expretion ')' | Identifier | Constant | FuncCall
+
+FuncDecl ::= 'def' Type Identifier '(' ')' Operator
+
+OperatorList ::= Operator {OperatorList}?
+
+Operator ::= If | While | AE ';' | Declar | '{' OperatorList '}' | FuncCall ';'
+
+If ::= 'if' '(' Expretion ')' Operator
+
+While ::= 'while' '(' Expretion ')' Operator
+ 
+Declar ::= Type {AE | Identifier}
+
+FuncCall ::= Identifier '(' ')'
+
+Out ::= 'print' '(' Expretion ')'

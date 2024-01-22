@@ -1,6 +1,8 @@
 #ifndef FRONT_END_H
 #define FRONT_END_H
 
+#include "DataBuffer.h"
+
 const size_t MAX_LANG_COMMAND_LEN        = 250;
 const size_t START_NAME_TABLE_SIZE       = 20;
 const size_t START_NAME_TABLE_ARRAY_SIZE = 10;
@@ -60,13 +62,9 @@ struct LangNameTableArray
     size_t size;
 };
 
+#include "Lexer.h"
+#include "NameTable.h"
 
 langErrorCode lang_parser(const char* filename, TreeData* tree, LangNameTableArray* table_array);
-
-langErrorCode name_table_ctor(LangNameTable* name_table);
-langErrorCode name_table_dtor(LangNameTable* name_table);
-
-langErrorCode name_table_array_ctor(LangNameTableArray* table_array);
-langErrorCode name_table_array_dtor(LangNameTableArray* table_array);
 
 #endif

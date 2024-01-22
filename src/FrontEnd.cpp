@@ -6,7 +6,6 @@
 #include <wchar.h>
 
 #include "Tree.h"
-#include "DataBuffer.h"
 #include "LangErrors.h"
 #include "FrontEnd.h"
 #include "Output.h"
@@ -15,10 +14,7 @@
 // глобальная таблица имён имеет индекс 0
 //TODO Сделать дамп массива с таблицами имён в виде графа
 
-static langErrorCode lang_lexer(LangTokenArray* token_array, outputBuffer* buffer);
-static langErrorCode read_lang_punct_command(outputBuffer* buffer, LangToken* token);
 static langErrorCode token_array_dtor(LangTokenArray* token_array);
-static langErrorCode read_lang_text_command(outputBuffer* buffer, LangToken* token);
 static TreeSegment*  getDecl(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static TreeSegment*  getFuncDeclaration(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static TreeSegment*  getDeclaration(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
@@ -38,12 +34,8 @@ static TreeSegment*  getOper(LangTokenArray* token_array, LangNameTableArray* ta
 static TreeSegment*  getFuncCall(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static TreeSegment*  getOut(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 
-static langErrorCode name_table_realloc(LangNameTable* name_table);
-static langErrorCode add_to_name_table(LangNameTable* name_table, char** name, LangNameType type);
-static size_t find_in_name_table(const LangNameTable* name_table, const char* const* name);
-
 //#################################################################################################//
-//------------------------------------> Parser functions <-----------------------------------------//
+//------------------------------------> Parser function <-----------------------------------------//
 //#################################################################################################//
 
 langErrorCode lang_parser(const char* filename, TreeData* tree, LangNameTableArray* table_array)
@@ -94,180 +86,6 @@ langErrorCode lang_parser(const char* filename, TreeData* tree, LangNameTableArr
 
     RETURN(NO_LANG_ERRORS);
     #undef RETURN
-}
-
-static langErrorCode lang_lexer(LangTokenArray* token_array, outputBuffer* buffer)
-{
-    assert(token_array);
-    assert(buffer);
-    langErrorCode error = NO_LANG_ERRORS;
-
-    size_t count = 0;
-    while (buffer->customBuffer[buffer->bufferPointer] != '\0')
-    {
-        if (isdigit(buffer->customBuffer[buffer->bufferPointer]))
-        {
-            ((token_array->Array)[count]).type     = NUM;
-            ((token_array->Array)[count]).position = buffer->bufferPointer;
-
-            int digit_len = 0;
-            sscanf(buffer->customBuffer +buffer->bufferPointer, "%lf%n", &(((token_array->Array)[count]).data.num), &digit_len);
-            buffer->bufferPointer += (size_t) digit_len;
-
-            count++;
-        }
-        else if (ispunct(buffer->customBuffer[buffer->bufferPointer]))
-        {
-            if ((error = read_lang_punct_command(buffer, &(token_array->Array)[count])))
-            {
-                return error;
-            }
-
-            count++;
-        }
-        else if (!isspace(buffer->customBuffer[buffer->bufferPointer]))
-        {
-            if ((error = read_lang_text_command(buffer, &(token_array->Array)[count])))
-            {
-                return error;
-            }
-
-            count++;
-        }
-        else
-        {
-            (buffer->bufferPointer)++;
-        }
-    }
-
-    token_array->size = count;
-    return NO_LANG_ERRORS;
-}
-
-static langErrorCode read_lang_punct_command(outputBuffer* buffer, LangToken* token)
-{
-    assert(buffer);
-    assert(token);
-
-    #define RECOGNIZE_SINGLE_COMMAND(CMD, KW)                                           \
-        case CMD:                                                                       \
-            token->type = KEY_WORD;                                                     \
-            token->data.K_word = KW;                                                    \
-            break;
-
-    #define RECOGNIZE_SINGLE_OR_DOUBLE_COMMAND(FIRST, SECOND, IF_DOUBLE, IF_SINGLE)     \
-        case FIRST:                                                                     \
-            token->type = KEY_WORD;                                                     \
-            if (buffer->customBuffer[buffer->bufferPointer + 1] == SECOND)              \
-            {                                                                           \
-                token->data.K_word = IF_DOUBLE;                                         \
-                (buffer->bufferPointer)++;                                              \
-            }                                                                           \
-            else                                                                        \
-            {                                                                           \
-                token->data.K_word = IF_SINGLE;                                         \
-            }                                                                           \
-            break;             
-
-    #define RECOGNIZE_DOUBLE_COMMAND(CMD, KW)                                           \
-        case CMD:                                                                       \
-            if (buffer->customBuffer[buffer->bufferPointer + 1] == CMD)                 \
-            {                                                                           \
-                token->type = KEY_WORD;                                                 \
-                token->data.K_word = KW;                                                \
-                (buffer->bufferPointer)++;                                              \
-            }                                                                           \
-            break;                               
-
-    token->position = buffer->bufferPointer;
-
-    switch (buffer->customBuffer[buffer->bufferPointer])
-    {
-    RECOGNIZE_SINGLE_COMMAND('(', KEY_OBR)
-    RECOGNIZE_SINGLE_COMMAND(')', KEY_CBR)
-    RECOGNIZE_SINGLE_COMMAND('{', KEY_O_CURBR)
-    RECOGNIZE_SINGLE_COMMAND('}', KEY_C_CURBR)
-    
-    RECOGNIZE_SINGLE_COMMAND('+', KEY_PLUS)
-    RECOGNIZE_SINGLE_COMMAND('-', KEY_MINUS)
-    RECOGNIZE_SINGLE_COMMAND('*', KEY_MUL)
-    RECOGNIZE_SINGLE_COMMAND('/', KEY_DIV)
-    RECOGNIZE_SINGLE_COMMAND(';', KEY_NEXT)
-    RECOGNIZE_SINGLE_COMMAND(',', KEY_ENUM)
-
-    //RECOGNIZE_SINGLE_OR_DOUBLE_COMMAND('=', '=', KEY_EQUAL, KEY_ASSIGMENT)
-    RECOGNIZE_SINGLE_OR_DOUBLE_COMMAND('<', '=', KEY_LESS_EQUAL, KEY_LESS)
-    RECOGNIZE_SINGLE_OR_DOUBLE_COMMAND('>', '=', KEY_MORE_EQUAL, KEY_MORE)
-    RECOGNIZE_SINGLE_OR_DOUBLE_COMMAND('!', '=', KEY_NOT_EQUAL, KEY_NOT)
-
-    RECOGNIZE_DOUBLE_COMMAND('|', KEY_OR)
-    RECOGNIZE_DOUBLE_COMMAND('&', KEY_AND)
-    RECOGNIZE_DOUBLE_COMMAND('=', KEY_EQUAL)
-
-    default:
-        return WRONG_LANG_SYNTAX;
-        break;
-    }
-
-    (buffer->bufferPointer)++;
-    return NO_LANG_ERRORS;
-
-    #undef RECOGNIZE_DOUBLE_COMMAND
-    #undef RECOGNIZE_SINGLE_OR_DOUBLE_COMMAND
-    #undef RECOGNIZE_SINGLE_COMMAND
-}
-
-static langErrorCode read_lang_text_command(outputBuffer* buffer, LangToken* token)
-{
-    assert(buffer);
-    assert(token);
-
-    #define NEW_KEY_WORD(text, KW)          \
-    else if (!strcmp(cmd, text))            \
-    {                                       \
-        token->type        = KEY_WORD;      \
-        token->data.K_word = KW;            \
-    }                                       
-
-    char cmd[MAX_LANG_COMMAND_LEN] = {};
-    size_t len = 0;
-
-    token->position = buffer->bufferPointer;
-
-    while(!isspace(buffer->customBuffer[buffer->bufferPointer])
-    &&    !ispunct(buffer->customBuffer[buffer->bufferPointer])
-    &&    !isdigit(buffer->customBuffer[buffer->bufferPointer]))
-    {
-        cmd[len] = buffer->customBuffer[buffer->bufferPointer];
-        len++;
-        (buffer->bufferPointer)++;
-    }
-    cmd[len] = '\0';
-
-    if (!strcmp(cmd, "синус"))
-    {
-        token->type        = KEY_WORD;
-        token->data.K_word = KEY_SIN;
-    }
-    NEW_KEY_WORD("косинус",             KEY_COS)
-    NEW_KEY_WORD("компаратор",          KEY_IF)
-    NEW_KEY_WORD("контур",              KEY_WHILE)
-    NEW_KEY_WORD("заземлить",           KEY_FLOOR)
-    NEW_KEY_WORD("разобрать",           KEY_DIFF)
-    NEW_KEY_WORD("бит",                 KEY_NUMBER)
-    NEW_KEY_WORD("схема",               KEY_DEF)
-    NEW_KEY_WORD("впаять",              KEY_IN)
-    NEW_KEY_WORD("вывести",             KEY_OUT)
-    NEW_KEY_WORD("приклеить",           KEY_ASSIGMENT)
-    else
-    {
-        token->type      = ID;
-        token->data.text = strdup(cmd);
-    }
-
-    return NO_LANG_ERRORS;
-
-    #undef NEW_KEY_WORD
 }
 
 //#################################################################################################//
@@ -996,131 +814,4 @@ static TreeSegment* CreateNode(SegmemtType type, SegmentData data, TreeSegment* 
     seg->right = right;
 
     return seg;
-}
-
-langErrorCode name_table_ctor(LangNameTable* name_table)
-{
-    assert(name_table);
-    langErrorCode error = NO_LANG_ERRORS;
-
-    name_table->Table = (LangNameTableUnit*) calloc(START_NAME_TABLE_SIZE, sizeof(LangNameTableUnit));
-    if (!name_table->Table)
-    {
-        error = NAME_TABLE_ALLOC_MEMORY_ERROR;
-    }
-
-    name_table->Pointer = 0;
-    name_table->size = START_NAME_TABLE_SIZE;
-
-    return error;
-}
-
-langErrorCode name_table_dtor(LangNameTable* name_table)
-{
-    assert(name_table);
-
-    if (!name_table->Table)
-    {
-        return BAD_NAME_TABLE;
-    }
-
-    free(name_table->Table);
-    name_table->Pointer = 0;
-    name_table->size    = 0;
-
-    return NO_LANG_ERRORS;
-}
-
-langErrorCode name_table_array_ctor(LangNameTableArray* table_array)
-{
-    assert(table_array);
-
-    table_array->Array = (LangNameTable*) calloc(2, sizeof(LangNameTable));
-    if (!table_array->Array)
-    {
-        return NAME_TABLE_ALLOC_MEMORY_ERROR;
-    }
-
-    table_array->Pointer = 0;
-    table_array->size    = START_NAME_TABLE_ARRAY_SIZE;
-
-    return NO_LANG_ERRORS;
-}
-
-langErrorCode name_table_array_dtor(LangNameTableArray* table_array)
-{
-    assert(table_array);
-    langErrorCode error = NO_LANG_ERRORS;
-
-    if (!table_array->Array)
-    {
-        return BAD_NAME_TABLE;
-    }
-
-    for (size_t i = 0; i <= table_array->Pointer; i++)
-    {
-        name_table_dtor(&(table_array->Array[i]));
-    }
-
-    free(table_array->Array);
-    table_array->Pointer = 0;
-    table_array->size    = 0;
-
-    return error;
-}
-
-static langErrorCode name_table_realloc(LangNameTable* name_table)
-{
-    assert(name_table);
-    langErrorCode error = NO_LANG_ERRORS;
-
-    name_table->Table = (LangNameTableUnit*) realloc(name_table->Table, 2 * name_table->size * sizeof(LangNameTableUnit));
-    if (!name_table->Table)
-    {
-        error = NAME_TABLE_ALLOC_MEMORY_ERROR;
-    }
-
-    name_table->size = 2 * name_table->size;
-
-    return error;
-}
-
-static langErrorCode add_to_name_table(LangNameTable* name_table, char** name, LangNameType type)
-{
-    assert(name_table);
-    assert(name);
-    langErrorCode error = NO_LANG_ERRORS;
-
-    if (name_table->Pointer >= name_table->size)
-    {
-        if ((error = name_table_realloc(name_table)))
-        {
-            return error;
-        }
-    }
-    printf("%s\n", *name);
-    strncpy(name_table->Table[name_table->Pointer].name, *name, MAX_LANG_COMMAND_LEN);
-    name_table->Table[name_table->Pointer].number = name_table->Pointer;
-    name_table->Table[name_table->Pointer].type   = type;
-
-    (name_table->Pointer)++;
-
-    return error;
-}
-
-static size_t find_in_name_table(const LangNameTable* name_table, const char* const* name)
-{
-    assert(name_table);
-    assert(name);
-
-    size_t position = 0;
-    for (size_t i = 0; i < name_table->Pointer; i++)
-    {
-        if (!strcmp(*name, name_table->Table[i].name))
-        {
-            position = name_table->Table[i].number;
-        }
-    }
-
-    return position;
 }

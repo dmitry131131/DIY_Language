@@ -19,7 +19,7 @@ int main()
         print_lang_error(stderr, error);
     }
     // FIXME Проверить добавление элементов в таблицу имён(проверка на наличие)
-    printf("%s\n", table.Array[1].Table[3].name);
+    printf("%s\n", table.Array[1].Table[2].name);
 
     tree_dump(&tree);
     name_table_array_dtor(&table);
