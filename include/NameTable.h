@@ -8,4 +8,6 @@ langErrorCode name_table_array_ctor(LangNameTableArray* table_array);
 langErrorCode name_table_dtor(LangNameTable* name_table);
 langErrorCode name_table_ctor(LangNameTable* name_table);
 
+langErrorCode name_table_array_dump(const LangNameTableArray* table_array);
+
 #endif

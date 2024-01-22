@@ -35,7 +35,7 @@ static TreeSegment*  getFuncCall(LangTokenArray* token_array, LangNameTableArray
 static TreeSegment*  getOut(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 
 //#################################################################################################//
-//------------------------------------> Parser function <-----------------------------------------//
+//------------------------------------> Parser function <------------------------------------------//
 //#################################################################################################//
 
 langErrorCode lang_parser(const char* filename, TreeData* tree, LangNameTableArray* table_array)
@@ -205,13 +205,8 @@ static TreeSegment* getFuncDeclaration(LangTokenArray* token_array, LangNameTabl
     (token_array->Pointer)++;
 
     // Запись о новой функции в глобальную таблицу имён
-    /*
-    strncpy(table_array->Array[0].Table[table_array->Array[0].Pointer].name, data.stringPtr, MAX_LANG_COMMAND_LEN);
-    table_array->Array[0].Table[table_array->Array[0].Pointer].number = token_array->Pointer;
-    table_array->Array[0].Table[table_array->Array[0].Pointer].type   = FUNCTION;
-    (table_array->Array[0].Pointer)++;
-    */
     add_to_name_table(&(table_array->Array[0]), &(data.stringPtr), FUNCTION);
+    table_array->Array[0].Table[table_array->Array[0].Pointer - 1].number = token_array->Pointer;
 
     // Запись информации в локальную таблицу имён
     if ((*error = name_table_ctor(&(table_array->Array[table_array->Pointer]))))

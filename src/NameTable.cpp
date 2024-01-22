@@ -10,6 +10,12 @@
 
 static langErrorCode name_table_realloc(LangNameTable* name_table);
 
+static langErrorCode write_dot_header(outputBuffer* buffer);
+static langErrorCode write_dot_body(outputBuffer* buffer, const LangNameTableArray* table_array);
+static langErrorCode write_dot_footer(outputBuffer* buffer);
+static langErrorCode get_name_type(char (*string)[MAX_LANG_COMMAND_LEN], LangNameType type);
+static langErrorCode write_func_table(outputBuffer* buffer, const LangNameTable* table);
+
 langErrorCode name_table_ctor(LangNameTable* name_table)
 {
     assert(name_table);
@@ -136,3 +142,154 @@ size_t find_in_name_table(const LangNameTable* name_table, const char* const* na
 
     return position;
 }
+
+//#################################################################################################//
+//-------------------------------------> Dump functions <------------------------------------------//
+//#################################################################################################//
+
+langErrorCode name_table_array_dump(const LangNameTableArray* table_array)
+{
+    assert(table_array);
+
+    #define RETURN() do{                        \
+        fclose(buffer.filePointer);             \
+        return NAME_TABLE_DUMP_ERROR;           \
+    }while(0)
+    
+    outputBuffer buffer = {};
+    buffer.AUTO_FLUSH = true;
+
+    system("mkdir -p temp");
+
+    if (create_output_file(&(buffer.filePointer), "temp/table_dump.dot", TEXT))
+    {
+        RETURN();
+    }
+
+    if (write_dot_header(&buffer))
+    {
+        RETURN();
+    }
+
+    if (write_dot_body(&buffer, table_array))
+    {
+        RETURN();
+    }
+
+    if (write_dot_footer(&buffer))
+    {
+        RETURN();
+    }
+
+    if (write_buffer_to_file(&buffer))
+    {
+        RETURN();
+    }
+
+    fclose(buffer.filePointer);
+    if (system("dot temp/table_dump.dot -Tpng -o table_dump.png"))
+    {            
+        return NAME_TABLE_DUMP_ERROR;  
+    }
+
+    #undef RETURN
+
+    return NO_LANG_ERRORS;
+}
+
+static langErrorCode write_dot_header(outputBuffer* buffer)
+{
+    assert(buffer);
+    print_to_buffer(buffer, "digraph G{\n"
+                            "rankdir = TB;\n"
+                            "bgcolor = \"#FFEFD5\";\n"
+                            "node[color = \"#800000\", fontsize = 10];\n"
+                            "edge[color = \"#800000\", fontsize = 15];\n\n");
+
+    return NO_LANG_ERRORS;
+}
+
+static langErrorCode write_dot_body(outputBuffer* buffer, const LangNameTableArray* table_array)
+{
+    assert(buffer);
+    assert(table_array);
+
+    print_to_buffer(buffer, "0 [shape = Mrecord, style = filled, fillcolor = \"#FFF5EE\", color = \"#800000\", label = \" {№ | ID | TYPE | NAME} ");
+
+    size_t current_number                     = 0;
+    char*  current_name                       = nullptr;
+    char   current_type[MAX_LANG_COMMAND_LEN] = {};
+
+    for (size_t i = 0; i < table_array->Array[0].Pointer; i++)
+    {
+        current_number = table_array->Array[0].Table[i].number;
+        current_name   = table_array->Array[0].Table[i].name;
+        get_name_type(&current_type, table_array->Array[0].Table[i].type);
+        print_to_buffer(buffer, "| { %lu | %lu | %s | <f%lu> %s} ", i, current_number, current_type, current_number, current_name);
+    }
+    print_to_buffer(buffer, "\"];\n\n");
+
+    for (size_t i = 1; i <= table_array->Pointer; i++)
+    {
+        write_func_table(buffer, &(table_array->Array[i]));
+    }
+
+    return NO_LANG_ERRORS;
+}
+
+static langErrorCode write_func_table(outputBuffer* buffer, const LangNameTable* table)
+{
+    assert(buffer);
+    assert(table);
+
+    print_to_buffer(buffer, "%lu [shape = Mrecord, style = filled, fillcolor = \"#FFF5EE\", color = \"#800000\", label = \" {№ | ID | TYPE | NAME} ",
+    table->table_number);
+
+    size_t current_number                     = 0;
+    char*  current_name                       = nullptr;
+    char   current_type[MAX_LANG_COMMAND_LEN] = {};
+
+    for (size_t i = 0; i < table->Pointer; i++)
+    {
+        current_number = table->Table[i].number;
+        current_name   = table->Table[i].name;
+        get_name_type(&current_type, table->Table[i].type);
+        print_to_buffer(buffer, "| { %lu | %lu | %s | %s} ", i, current_number, current_type, current_name);
+    }
+
+    print_to_buffer(buffer, "\"];\n"
+                            "0:<f%lu> -> %lu [weight = 1, color = \"#0000ff\"];\n\n", table->table_number, table->table_number);
+
+
+    return NO_LANG_ERRORS;
+}
+
+static langErrorCode get_name_type(char (*string)[MAX_LANG_COMMAND_LEN], LangNameType type)
+{
+    switch (type)
+    {
+    case NO_LANG_TYPE:
+        strncpy(*string, "ERROR!", MAX_LANG_COMMAND_LEN);
+        break;
+    case VARIABLE:
+        strncpy(*string, "Var", MAX_LANG_COMMAND_LEN);
+        break;
+    case FUNCTION:
+        strncpy(*string, "Func", MAX_LANG_COMMAND_LEN);
+        break;
+    
+    default:
+        strncpy(*string, "ERROR!", MAX_LANG_COMMAND_LEN);
+        break;
+    }
+
+    return NO_LANG_ERRORS;
+}
+
+static langErrorCode write_dot_footer(outputBuffer* buffer)
+{  
+    assert(buffer);
+    print_to_buffer(buffer, "}");
+    return NO_LANG_ERRORS;
+}
+

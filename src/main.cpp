@@ -22,6 +22,7 @@ int main()
     printf("%s\n", table.Array[1].Table[2].name);
 
     tree_dump(&tree);
+    name_table_array_dump(&table);
     name_table_array_dtor(&table);
     tree_dtor(&tree);
     return 0;
