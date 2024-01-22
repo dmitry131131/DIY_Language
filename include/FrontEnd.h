@@ -60,6 +60,7 @@ struct LangNameTableArray
     LangNameTable* Array;
     size_t Pointer;             // Указатель pointer указывает на текущую таблицу имён, в которую нужно записывать(брать) имена переменных
     size_t size;
+    size_t capacity;
 };
 
 #include "Lexer.h"

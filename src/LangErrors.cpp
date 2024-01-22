@@ -21,6 +21,7 @@ void print_lang_error(FILE* stream, langErrorCode error)
     PRINT_ERROR(error, WRONG_LANG_SYNTAX,               "Wrong lang syntax!\n");
     PRINT_ERROR(error, NAME_TABLE_ALLOC_MEMORY_ERROR,   "Error in calloc, tryed to alloc memory for name table\n");
     PRINT_ERROR(error, BAD_NAME_TABLE,                  "Bad name table!\n");
+    PRINT_ERROR(error, UNDEFINED_NAME,                  "Undefined name!\n");
 
     #undef PRINT_ERROR
 }

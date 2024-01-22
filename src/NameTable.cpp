@@ -53,14 +53,15 @@ langErrorCode name_table_array_ctor(LangNameTableArray* table_array)
 {
     assert(table_array);
 
-    table_array->Array = (LangNameTable*) calloc(2, sizeof(LangNameTable));
+    table_array->Array = (LangNameTable*) calloc(START_NAME_TABLE_ARRAY_SIZE, sizeof(LangNameTable));
     if (!table_array->Array)
     {
         return NAME_TABLE_ALLOC_MEMORY_ERROR;
     }
 
-    table_array->Pointer = 0;
-    table_array->size    = START_NAME_TABLE_ARRAY_SIZE;
+    table_array->Pointer  = 0;
+    table_array->size     = 0;
+    table_array->capacity = START_NAME_TABLE_ARRAY_SIZE;
 
     return NO_LANG_ERRORS;
 }
@@ -75,7 +76,7 @@ langErrorCode name_table_array_dtor(LangNameTableArray* table_array)
         return BAD_NAME_TABLE;
     }
 
-    for (size_t i = 0; i <= table_array->Pointer; i++)
+    for (size_t i = 0; i <= table_array->size; i++)
     {
         name_table_dtor(&(table_array->Array[i]));
     }
@@ -103,7 +104,7 @@ static langErrorCode name_table_realloc(LangNameTable* name_table)
     return error;
 }
 
-langErrorCode add_to_name_table(LangNameTable* name_table, char** name, LangNameType type)
+langErrorCode add_to_name_table(LangNameTable* name_table, char** name, size_t number, LangNameType type)
 {
     assert(name_table);
     assert(name);
@@ -116,9 +117,9 @@ langErrorCode add_to_name_table(LangNameTable* name_table, char** name, LangName
             return error;
         }
     }
-    printf("%s\n", *name);
+    
     strncpy(name_table->Table[name_table->Pointer].name, *name, MAX_LANG_COMMAND_LEN);
-    name_table->Table[name_table->Pointer].number = name_table->Pointer;
+    name_table->Table[name_table->Pointer].number = number;
     name_table->Table[name_table->Pointer].type   = type;
 
     (name_table->Pointer)++;
@@ -229,7 +230,7 @@ static langErrorCode write_dot_body(outputBuffer* buffer, const LangNameTableArr
     }
     print_to_buffer(buffer, "\"];\n\n");
 
-    for (size_t i = 1; i <= table_array->Pointer; i++)
+    for (size_t i = 1; i <= table_array->size; i++)
     {
         write_func_table(buffer, &(table_array->Array[i]));
     }
