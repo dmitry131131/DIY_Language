@@ -11,7 +11,7 @@ Priority3 ::= Priority2 {['+', '-'] Priority2}*
 Priority2 ::= Priority1 {['*', '/'] Priority1}*
 Priority1 ::= ['sin', 'cos', 'floor', 'in'] '(' Expretion ')' | Identifier | Constant | FuncCall
 
-FuncDecl ::= 'def' Type Identifier '(' ')' Operator
+FuncDecl ::= 'def' Type Identifier '(' {Type Identifier}* ')' Operator
 
 OperatorList ::= Operator {OperatorList}?
 
@@ -23,6 +23,6 @@ While ::= 'while' '(' Expretion ')' Operator
  
 Declar ::= Type {AE | Identifier}
 
-FuncCall ::= Identifier '(' ')'
+FuncCall ::= Identifier '(' {Expretion}* ')'
 
 Out ::= 'print' '(' Expretion ')'
