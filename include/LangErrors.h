@@ -11,9 +11,15 @@ enum langErrorCode
     NAME_TABLE_ALLOC_MEMORY_ERROR        = 1 << 4,
     BAD_NAME_TABLE                       = 1 << 5,
     UNDEFINED_NAME                       = 1 << 6,
-    NAME_TABLE_DUMP_ERROR                = 1 << 7
+    NAME_TABLE_DUMP_ERROR                = 1 << 7,
+    LINE_ARRAY_ALLOC_ERROR               = 1 << 8,
+    FUNCTION_REDECLARATION_ERROR         = 1 << 9,
+    ID_EXPECTED                          = 1 << 10,
+    KEYWORD_EXPECTED                     = 1 << 11,
+    WRONG_KEY_WORD                       = 1 << 12,
+    VARIABLE_REDECLARATION_ERROR         = 1 << 13
 };
 
-void print_lang_error(FILE* stream, langErrorCode error);
+void print_lang_error(FILE* stream, langErrorCode error, size_t line, const char* text = nullptr);
 
 #endif

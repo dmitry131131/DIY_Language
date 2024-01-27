@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <string.h>
 #include <ctype.h>
@@ -11,6 +12,8 @@
 
 static langErrorCode read_lang_punct_command(outputBuffer* buffer, LangToken* token);
 static langErrorCode read_lang_text_command(outputBuffer* buffer, LangToken* token);
+
+static langErrorCode add_line_to_array(LangTokenArray* token_array, size_t position);
 
 langErrorCode lang_lexer(LangTokenArray* token_array, outputBuffer* buffer)
 {
@@ -49,6 +52,14 @@ langErrorCode lang_lexer(LangTokenArray* token_array, outputBuffer* buffer)
             }
 
             count++;
+        }
+        else if (buffer->customBuffer[buffer->bufferPointer] == '\n')
+        {
+            (buffer->bufferPointer)++;
+            if ((error = add_line_to_array(token_array, buffer->bufferPointer)))
+            {
+                return error;
+            }
         }
         else
         {
@@ -184,4 +195,38 @@ static langErrorCode read_lang_text_command(outputBuffer* buffer, LangToken* tok
     return NO_LANG_ERRORS;
 
     #undef NEW_KEY_WORD
+}
+
+static langErrorCode line_beginings_realloc(LangTokenArray* token_array)
+{
+    assert(token_array);
+
+    token_array->line_beginings = (size_t*) realloc(token_array->line_beginings, token_array->line_array_size * 2);
+    token_array->line_array_size *= 2;
+    if (!token_array->line_beginings)
+    {
+        return LINE_ARRAY_ALLOC_ERROR;
+    }
+
+    return NO_LANG_ERRORS;
+}
+
+static langErrorCode add_line_to_array(LangTokenArray* token_array, size_t position)
+{
+    assert(token_array);
+    langErrorCode error = NO_LANG_ERRORS;
+
+    (token_array->line_count)++;
+
+    if (token_array->line_count >= token_array->line_array_size)
+    {
+        if ((error = line_beginings_realloc(token_array)))
+        {
+            return error;
+        }
+    }
+
+    token_array->line_beginings[token_array->line_count] = position;
+
+    return error;
 }

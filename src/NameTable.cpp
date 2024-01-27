@@ -5,7 +5,7 @@
 
 #include "Tree.h"
 #include "LangErrors.h"
-#include "FrontEnd.h"
+#include "DataBuffer.h"
 #include "NameTable.h"
 
 static langErrorCode name_table_realloc(LangNameTable* name_table);
@@ -13,7 +13,7 @@ static langErrorCode name_table_realloc(LangNameTable* name_table);
 static langErrorCode write_dot_header(outputBuffer* buffer);
 static langErrorCode write_dot_body(outputBuffer* buffer, const LangNameTableArray* table_array);
 static langErrorCode write_dot_footer(outputBuffer* buffer);
-static langErrorCode get_name_type(char (*string)[MAX_LANG_COMMAND_LEN], LangNameType type);
+static langErrorCode get_name_type(char (*string)[MAX_NAME_LEN], LangNameType type);
 static langErrorCode write_func_table(outputBuffer* buffer, const LangNameTable* table);
 
 langErrorCode name_table_ctor(LangNameTable* name_table)
@@ -118,7 +118,7 @@ langErrorCode add_to_name_table(LangNameTable* name_table, char** name, size_t n
         }
     }
     
-    strncpy(name_table->Table[name_table->Pointer].name, *name, MAX_LANG_COMMAND_LEN);
+    strncpy(name_table->Table[name_table->Pointer].name, *name, MAX_NAME_LEN);
     name_table->Table[name_table->Pointer].number = number;
     name_table->Table[name_table->Pointer].type   = type;
 
@@ -219,7 +219,7 @@ static langErrorCode write_dot_body(outputBuffer* buffer, const LangNameTableArr
 
     size_t current_number                     = 0;
     char*  current_name                       = nullptr;
-    char   current_type[MAX_LANG_COMMAND_LEN] = {};
+    char   current_type[MAX_NAME_LEN]         = {};
 
     for (size_t i = 0; i < table_array->Array[0].Pointer; i++)
     {
@@ -248,7 +248,7 @@ static langErrorCode write_func_table(outputBuffer* buffer, const LangNameTable*
 
     size_t current_number                     = 0;
     char*  current_name                       = nullptr;
-    char   current_type[MAX_LANG_COMMAND_LEN] = {};
+    char   current_type[MAX_NAME_LEN]         = {};
 
     for (size_t i = 0; i < table->Pointer; i++)
     {
@@ -265,22 +265,22 @@ static langErrorCode write_func_table(outputBuffer* buffer, const LangNameTable*
     return NO_LANG_ERRORS;
 }
 
-static langErrorCode get_name_type(char (*string)[MAX_LANG_COMMAND_LEN], LangNameType type)
+static langErrorCode get_name_type(char (*string)[MAX_NAME_LEN], LangNameType type)
 {
     switch (type)
     {
     case NO_LANG_TYPE:
-        strncpy(*string, "ERROR!", MAX_LANG_COMMAND_LEN);
+        strncpy(*string, "ERROR!", MAX_NAME_LEN);
         break;
     case VARIABLE:
-        strncpy(*string, "Var", MAX_LANG_COMMAND_LEN);
+        strncpy(*string, "Var", MAX_NAME_LEN);
         break;
     case FUNCTION:
-        strncpy(*string, "Func", MAX_LANG_COMMAND_LEN);
+        strncpy(*string, "Func", MAX_NAME_LEN);
         break;
     
     default:
-        strncpy(*string, "ERROR!", MAX_LANG_COMMAND_LEN);
+        strncpy(*string, "ERROR!", MAX_NAME_LEN);
         break;
     }
 

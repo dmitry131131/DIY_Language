@@ -11,12 +11,12 @@ int main()
     
     if ((error = name_table_array_ctor(&table)))
     {
-        print_lang_error(stderr, error);
+        print_lang_error(stderr, error, 0);
     }
 
     if ((error = lang_parser("text.txt", &tree, &table)))
     {
-        print_lang_error(stderr, error);
+        print_lang_error(stderr, error, 0);
     }
 
     tree_dump(&tree);

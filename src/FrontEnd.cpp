@@ -13,7 +13,11 @@
 // Сделать парсинг с помощью таблиц имён - в мейне есть массив с таблицами имён, для каждой функции создаётся своя таблица имён.
 // глобальная таблица имён имеет индекс 0
 
+static langErrorCode token_array_ctor(LangTokenArray* token_array, size_t token_array_len);
 static langErrorCode token_array_dtor(LangTokenArray* token_array);
+static size_t get_line_by_position(LangTokenArray* token_array);
+static const char* get_text_by_opcode(KeyWords word);
+
 static TreeSegment*  getDecl(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static TreeSegment*  getFuncDeclaration(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static TreeSegment*  getDeclaration(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
@@ -71,7 +75,10 @@ langErrorCode lang_parser(const char* filename, TreeData* tree, LangNameTableArr
     fclose(file);
 
     LangTokenArray token_array = {};
-    token_array.Array = (LangToken*) calloc(buffer.customSize + 2, sizeof(LangToken));
+    if ((error = token_array_ctor(&token_array, buffer.customSize + 2)))
+    {
+        RETURN(error);
+    }
     
     if ((error = lang_lexer(&token_array, &buffer)))
     {
@@ -160,35 +167,50 @@ static TreeSegment* getDeclaration(LangTokenArray* token_array, LangNameTableArr
     return val;
 }
 
-#define CHECK_BRACKET(BR_TYPE, DEL_CODE) do{                                \
-    if ((token_array->Array)[token_array->Pointer].type != KEY_WORD         \
-    ||  (token_array->Array)[token_array->Pointer].data.K_word != BR_TYPE)  \
-    {                                                                       \
-        *error = WRONG_LANG_SYNTAX;                                         \
-        DEL_CODE                                                            \
-        return nullptr;                                                     \
-    }                                                                       \
+#define CHECK_TOKEN_TYPE(TOKEN_TYPE, DEL_CODE) do{                                                                  \
+    if ((token_array->Array)[token_array->Pointer].type != TOKEN_TYPE)                                              \
+    {                                                                                                               \
+        *error = WRONG_LANG_SYNTAX;                                                                                 \
+        DEL_CODE                                                                                                    \
+        if (TOKEN_TYPE == ID)                                                                                       \
+            print_lang_error(stderr, ID_EXPECTED, get_line_by_position(token_array));                               \
+        else if (TOKEN_TYPE == KEY_WORD)                                                                            \
+            print_lang_error(stderr, KEYWORD_EXPECTED, get_line_by_position(token_array));                          \
+        return nullptr;                                                                                             \
+    }                                                                                                               \
 }while(0)
 
-#define CHECK_KEY_WORD(KW, DEL_CODE) do{                                    \
-    if ((token_array->Array)[token_array->Pointer].type != KEY_WORD         \
-    ||  (token_array->Array)[token_array->Pointer].data.K_word != KW)       \
-    {                                                                       \
-        *error = WRONG_LANG_SYNTAX;                                         \
-        DEL_CODE                                                            \
-        return nullptr;                                                     \
-    }                                                                       \
+#define CHECK_BRACKET(BR_TYPE, DEL_CODE) do{                                                                        \
+    if ((token_array->Array)[token_array->Pointer].type != KEY_WORD                                                 \
+    ||  (token_array->Array)[token_array->Pointer].data.K_word != BR_TYPE)                                          \
+    {                                                                                                               \
+        *error = WRONG_LANG_SYNTAX;                                                                                 \
+        DEL_CODE                                                                                                    \
+        print_lang_error(stderr, WRONG_KEY_WORD, get_line_by_position(token_array), get_text_by_opcode(BR_TYPE));   \
+        return nullptr;                                                                                             \
+    }                                                                                                               \
+}while(0)                              
+
+#define CHECK_KEY_WORD(KW, DEL_CODE) do{                                                                            \
+    if ((token_array->Array)[token_array->Pointer].type != KEY_WORD                                                 \
+    ||  (token_array->Array)[token_array->Pointer].data.K_word != KW)                                               \
+    {                                                                                                               \
+        *error = WRONG_LANG_SYNTAX;                                                                                 \
+        DEL_CODE                                                                                                    \
+        print_lang_error(stderr, WRONG_KEY_WORD, get_line_by_position(token_array), get_text_by_opcode(KW));        \
+        return nullptr;                                                                                             \
+    }                                                                                                               \
 }while(0)
 
-#define ADD_TO_NAME_TABLE(input_name_table, string_ptr, elem_type, del_code) do{                            \
-    if (!find_in_name_table(input_name_table, string_ptr))                                                  \
-    {                                                                                                       \
-        if ((*error = add_to_name_table(input_name_table, string_ptr, token_array->Pointer, elem_type)))    \
-        {                                                                                                   \
-            del_code                                                                                        \
-            return nullptr;                                                                                 \
-        }                                                                                                   \
-    }                                                                                                       \
+#define ADD_TO_NAME_TABLE(input_name_table, string_ptr, elem_type, del_code) do{                                    \
+    if (!find_in_name_table(input_name_table, string_ptr))                                                          \
+    {                                                                                                               \
+        if ((*error = add_to_name_table(input_name_table, string_ptr, token_array->Pointer, elem_type)))            \
+        {                                                                                                           \
+            del_code                                                                                                \
+            return nullptr;                                                                                         \
+        }                                                                                                           \
+    }                                                                                                               \
 }while(0)
 
 static TreeSegment* getFuncDeclaration(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
@@ -207,10 +229,13 @@ static TreeSegment* getFuncDeclaration(LangTokenArray* token_array, LangNameTabl
     TreeSegment* val2 = CreateNode(KEYWORD, data, nullptr, nullptr);
     (token_array->Pointer)++;
 
-    if ((token_array->Array)[token_array->Pointer].type != ID)
+    CHECK_TOKEN_TYPE(ID, del_segment(val2););
+
+    if (find_in_name_table(&(table_array->Array[0]), &((token_array->Array)[token_array->Pointer].data.text)))
     {
         *error = WRONG_LANG_SYNTAX;
         del_segment(val2);
+        print_lang_error(stderr, FUNCTION_REDECLARATION_ERROR, get_line_by_position(token_array), (token_array->Array)[token_array->Pointer].data.text);
         return nullptr;
     }
     
@@ -301,12 +326,20 @@ static TreeSegment* getFuncArgs(LangTokenArray* token_array, LangNameTableArray*
     TreeSegment* val = nullptr;
 
     (token_array->Pointer)++;
-    if ((token_array->Array)[token_array->Pointer].type != ID)
+
+    CHECK_TOKEN_TYPE(ID, ;);
+
+    if (find_in_name_table(&(table_array->Array[table_array->Pointer]), &((token_array->Array)[token_array->Pointer].data.text)))                                                          
     {
         *error = WRONG_LANG_SYNTAX;
-        return nullptr;
-    }
-    ADD_TO_NAME_TABLE(&(table_array->Array[table_array->Pointer]), &((token_array->Array)[token_array->Pointer].data.text), VARIABLE, ;);
+        print_lang_error(stderr, VARIABLE_REDECLARATION_ERROR, get_line_by_position(token_array), (token_array->Array)[token_array->Pointer].data.text);
+        return nullptr;               
+    }        
+                                                                                           
+    if ((*error = add_to_name_table(&(table_array->Array[table_array->Pointer]), &((token_array->Array)[token_array->Pointer].data.text), token_array->Pointer, VARIABLE)))            
+    {                                                                                                                                                                                                        
+        return nullptr;                                                                                         
+    }                                                                                                           
 
     SegmentData data = {.Id = token_array->Pointer};
     val = CreateNode(IDENTIFIER, data, nullptr, nullptr);
@@ -331,11 +364,12 @@ static TreeSegment* getDecl(LangTokenArray* token_array, LangNameTableArray* tab
     SegmentData data = {.K_word = (token_array->Array)[token_array->Pointer].data.K_word};
     TreeSegment* val = CreateNode(KEYWORD, data, nullptr, nullptr);
     (token_array->Pointer)++;
-
-    if ((token_array->Array)[token_array->Pointer].type     != ID
-    ||  (token_array->Array)[token_array->Pointer + 1].type != KEY_WORD)
+    
+    CHECK_TOKEN_TYPE(ID, del_segment(val););
+    if ((token_array->Array)[token_array->Pointer + 1].type != KEY_WORD)
     {
         *error = WRONG_LANG_SYNTAX;
+        print_lang_error(stderr, WRONG_KEY_WORD, get_line_by_position(token_array), get_text_by_opcode(KEY_NEXT));
         del_segment(val);
         return nullptr;
     }
@@ -357,6 +391,7 @@ static TreeSegment* getDecl(LangTokenArray* token_array, LangNameTableArray* tab
     else
     {
         *error = WRONG_LANG_SYNTAX;
+        print_lang_error(stderr, WRONG_KEY_WORD, get_line_by_position(token_array), get_text_by_opcode(KEY_NEXT));
         del_segment(val);
         return nullptr;
     }
@@ -376,20 +411,16 @@ static TreeSegment* getAE(LangTokenArray* token_array, LangNameTableArray* table
     assert(token_array);
     assert(table_array);
     assert(error);
+    
+    CHECK_TOKEN_TYPE(ID, ;);
 
-    if ((token_array->Array)[token_array->Pointer + 1].data.K_word != KEY_ASSIGMENT
-    ||  (token_array->Array)[token_array->Pointer].type            != ID)
-    {
-        *error = WRONG_LANG_SYNTAX;
-        return nullptr;
-    }
-
+    ADD_TO_NAME_TABLE(&(table_array->Array[table_array->Pointer]), &((token_array->Array)[token_array->Pointer].data.text), VARIABLE, ;);
     SegmentData data = {.Id = token_array->Pointer};
     TreeSegment* val = CreateNode(IDENTIFIER, data, nullptr, nullptr);
-    
-    ADD_TO_NAME_TABLE(&(table_array->Array[table_array->Pointer]), &((token_array->Array)[token_array->Pointer].data.text), VARIABLE, del_segment(val););
-    
-    (token_array->Pointer) += 2;
+    (token_array->Pointer)++;
+
+    CHECK_KEY_WORD(KEY_ASSIGMENT, del_segment(val););
+    (token_array->Pointer)++;
     
     TreeSegment* val2 = getE(token_array, table_array, error);
     if (*error)
@@ -524,7 +555,7 @@ static TreeSegment* getPriority1(LangTokenArray* token_array, LangNameTableArray
     if ((token_array->Array)[token_array->Pointer].type == KEY_WORD)
     {
         SegmentData data = {.K_word = (token_array->Array)[token_array->Pointer].data.K_word};
-
+        // TODO написать про допустимый список ключевых слов
         if (data.K_word != KEY_SIN && data.K_word != KEY_COS && data.K_word != KEY_FLOOR && data.K_word != KEY_IN && data.K_word != KEY_OBR)
         {
             *error = WRONG_LANG_SYNTAX;
@@ -576,7 +607,7 @@ static TreeSegment* getPriority1(LangTokenArray* token_array, LangNameTableArray
     else
     {
         *error = NO_LANG_ERRORS;
-        return val;
+        return val;                      // FIXME проверить что протсходит в этом if
     }
 
     (token_array->Pointer)++;
@@ -624,12 +655,9 @@ static TreeSegment* getFuncCall(LangTokenArray* token_array, LangNameTableArray*
 
     TreeSegment* val  = nullptr;
     TreeSegment* val2 = nullptr;
+    
+    CHECK_TOKEN_TYPE(ID, ;);
 
-    if ((token_array->Array)[token_array->Pointer].type != ID)
-    {
-        *error = WRONG_LANG_SYNTAX;
-        return val;
-    }
     SegmentData data = {};
     val = CreateNode(CALL, data, nullptr, nullptr);
 
@@ -851,13 +879,13 @@ static TreeSegment* getOper(LangTokenArray* token_array, LangNameTableArray* tab
             break;
         
         default:
-            *error = WRONG_LANG_SYNTAX;
+            *error = WRONG_LANG_SYNTAX;             // FIXME возможно написать про допустимые ключевые слова
             return val;
         }
     }
     else
     {
-        (*error) = WRONG_LANG_SYNTAX;
+        (*error) = WRONG_LANG_SYNTAX;               // FIXME возможно написать про допустимые типы токена 
         return val;
     }
 
@@ -893,10 +921,28 @@ static TreeSegment* getOperatorList(LangTokenArray* token_array, LangNameTableAr
 
 #undef CHECK_BRACKET
 #undef ADD_TO_NAME_TABLE
+#undef CHECK_TOKEN_TYPE
 
 //#################################################################################################//
 //------------------------------------> Shared functions <-----------------------------------------//
 //#################################################################################################//
+
+static langErrorCode token_array_ctor(LangTokenArray* token_array, size_t token_array_len)
+{
+    assert(token_array);
+
+    token_array->line_beginings = (size_t*) calloc(START_LINE_ARRAY_LEN + 1, sizeof(size_t));
+    token_array->Array          = (LangToken*) calloc(token_array_len, sizeof(LangToken));
+    if (!token_array->line_beginings || !token_array->Array)
+    {
+        return LINE_ARRAY_ALLOC_ERROR;
+    }
+
+    token_array->line_array_size = START_LINE_ARRAY_LEN;
+    token_array->line_count      = 1;
+
+    return NO_LANG_ERRORS;
+}
 
 static langErrorCode token_array_dtor(LangTokenArray* token_array)
 {
@@ -909,10 +955,52 @@ static langErrorCode token_array_dtor(LangTokenArray* token_array)
             free(token_array->Array[i].data.text);
         }
     }
+    free(token_array->line_beginings);
 
     free(token_array->Array);
     return NO_LANG_ERRORS;
 }   
+
+static size_t get_line_by_position(LangTokenArray* token_array)
+{
+    size_t line = 1;
+    while (token_array->Array[token_array->Pointer].position > token_array->line_beginings[line])
+    {
+        line++;
+    }
+    return line - 1;
+}
+
+static const char* get_text_by_opcode(KeyWords word)
+{
+    switch ((size_t) word)
+    {
+    case KEY_IF:
+        return "компаратор";
+    case KEY_WHILE:
+        return "контур";
+    case KEY_ASSIGMENT:
+        return "приклеить";
+    case KEY_SIN:
+        return "синус";
+    case KEY_COS:
+        return "косинус";
+    case KEY_NUMBER:
+        return "бит";
+    case KEY_OBR:
+        return "(";
+    case KEY_CBR:
+        return ")";
+    case KEY_O_CURBR:
+        return "{";
+    case KEY_C_CURBR:
+        return "}";
+    case KEY_NEXT:
+        return ";";
+    default:
+        return "key_word";
+    }
+}
 
 static TreeSegment* CreateNode(SegmemtType type, SegmentData data, TreeSegment* left, TreeSegment* right)
 {
