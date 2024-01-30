@@ -8,7 +8,6 @@
 #include "Tree.h"
 #include "LangErrors.h"
 #include "FrontEnd.h"
-#include "Output.h"
 
 // Сделать парсинг с помощью таблиц имён - в мейне есть массив с таблицами имён, для каждой функции создаётся своя таблица имён.
 // глобальная таблица имён имеет индекс 0
@@ -90,8 +89,6 @@ langErrorCode lang_parser(const char* filename, TreeData* tree, LangNameTableArr
         printf("In position: %lu\n", token_array.Array[token_array.Pointer].position);
         RETURN(error);
     }
-
-    //write_lang_tree_to_file("out.txt", tree);  // Это должно быть вне этой функции
 
     RETURN(NO_LANG_ERRORS);
     #undef RETURN

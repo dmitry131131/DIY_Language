@@ -7,9 +7,9 @@ const size_t START_NAME_TABLE_ARRAY_SIZE = 10;
 
 
 enum LangNameType {
-    NO_LANG_TYPE,
-    VARIABLE,
-    FUNCTION
+    NO_LANG_TYPE    = 0,
+    VARIABLE        = 1,
+    FUNCTION        = 2
 };
 
 struct LangNameTableUnit {
