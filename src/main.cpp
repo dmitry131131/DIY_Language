@@ -3,8 +3,9 @@
 #include "Tree.h"
 #include "LangErrors.h"
 #include "FrontEnd.h"
-#include "BackEnd.h"
 #include "Output.h"
+#include "BackEnd.h"
+#include "TreeReader.h"
 
 int main()
 {

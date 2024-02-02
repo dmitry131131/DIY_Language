@@ -15,9 +15,9 @@ TARGET = lang
 SourcePrefix = src/
 BuildPrefix = build/
 BuildFolder = build
-Include = -Iinclude -Ilib/Simple_tree/include -Ilib/Color_console_output/include -Ilib/Data_buffer/include
+Include = -Iinclude -Ilib/Simple_tree/include -Ilib/Color_console_output/include -Ilib/Data_buffer/include 
 
-Sources = FrontEnd.cpp BackEnd.cpp LangErrors.cpp Output.cpp NameTable.cpp Lexer.cpp
+Sources = FrontEnd.cpp BackEnd.cpp LangErrors.cpp Output.cpp NameTable.cpp Lexer.cpp TreeReader.cpp
 Main = main.cpp
 
 Libs = -Llib/Simple_tree/build/ -lSimpleTree -Llib/Simple_tree/lib/Color_console_output/build/ -lColor_output\
