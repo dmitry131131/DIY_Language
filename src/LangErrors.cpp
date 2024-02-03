@@ -45,6 +45,7 @@ void print_lang_error(FILE* stream, langErrorCode error, size_t line, const char
     PRINT_ERROR(error, NAME_TABLE_ALLOC_MEMORY_ERROR,           "Error in calloc, tryed to alloc memory for name table\n");
     PRINT_ERROR(error, BAD_NAME_TABLE,                          "Bad name table!\n");
     PRINT_ERROR(error, UNDEFINED_NAME,                          "Undefined name!\n");
+    PRINT_ERROR(error, PROCESSOR_MEMORY_OVER,                   "Processor memory is over!\n");
  
     PRINT_SYNTAX_ERROR(error, ID_EXPECTED,                      "ID was expected!\n");
     PRINT_SYNTAX_ERROR(error, KEYWORD_EXPECTED,                 "Key word was expected!\n");

@@ -34,6 +34,9 @@ struct LangNameTableArray
 };
 
 size_t find_in_name_table(const LangNameTable* name_table, const char* const* name);
+const char* find_in_name_table_by_code(const LangNameTable* name_table, size_t number);
+LangNameTable* find_name_table(const LangNameTableArray* table_array, size_t number);
+
 langErrorCode add_to_name_table(LangNameTable* name_table, char** name, size_t number, LangNameType type);
 langErrorCode name_table_array_dtor(LangNameTableArray* table_array);
 langErrorCode name_table_array_ctor(LangNameTableArray* table_array);

@@ -144,6 +144,36 @@ size_t find_in_name_table(const LangNameTable* name_table, const char* const* na
     return position;
 }
 
+const char* find_in_name_table_by_code(const LangNameTable* name_table, size_t number)
+{
+    assert(name_table);
+
+    for (size_t i = 0; i <= name_table->Pointer; i++)
+    {
+        if (number == name_table->Table[i].number)
+        {
+            return name_table->Table[i].name;
+        }
+    }
+
+    return nullptr;
+}
+
+LangNameTable* find_name_table(const LangNameTableArray* table_array, size_t number)
+{
+    assert(table_array);
+
+    for (size_t i = 0; i < table_array->size; i++)
+    {
+        if (table_array->Array[i].table_number == number)
+        {
+            return &(table_array->Array[i]);
+        }
+    }
+
+    return nullptr;
+}
+
 //#################################################################################################//
 //-------------------------------------> Dump functions <------------------------------------------//
 //#################################################################################################//

@@ -17,7 +17,9 @@ enum langErrorCode
     ID_EXPECTED                          = 1 << 10,
     KEYWORD_EXPECTED                     = 1 << 11,
     WRONG_KEY_WORD                       = 1 << 12,
-    VARIABLE_REDECLARATION_ERROR         = 1 << 13
+    VARIABLE_REDECLARATION_ERROR         = 1 << 13,
+    PROCESSOR_MEMORY_OVER                = 1 << 14,
+    REPEARED_DECLARATION                 = 1 << 15
 };
 
 void print_lang_error(FILE* stream, langErrorCode error, size_t line, const char* text = nullptr);
