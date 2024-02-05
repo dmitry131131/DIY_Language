@@ -186,6 +186,8 @@ static langErrorCode read_lang_text_command(outputBuffer* buffer, LangToken* tok
     NEW_KEY_WORD("впаять",              KEY_IN)
     NEW_KEY_WORD("вывести",             KEY_OUT)
     NEW_KEY_WORD("приклеить",           KEY_ASSIGMENT)
+    NEW_KEY_WORD("вернуть",             KEY_RETURN)
+    NEW_KEY_WORD("отрезать",            KEY_BREAK)
     else
     {
         token->type      = ID;

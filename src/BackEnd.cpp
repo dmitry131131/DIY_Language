@@ -119,12 +119,6 @@ static langErrorCode compile_parameters_in_definition(const TreeSegment* segment
 
     langErrorCode error = NO_LANG_ERRORS;
 
-    // Ошибка повторной декларации, возможно её можно ловить ещё на стадии фронтенда
-    if (find_in_RAM_table(RAM_Table, segment->left->left->data.Id) != (size_t) -1)
-    {
-        // error
-    }
-
     if ((error = add_to_RAM_Table(RAM_Table, segment->left->left->data.Id)))
     {
         return error;

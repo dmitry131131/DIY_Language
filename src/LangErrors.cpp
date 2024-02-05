@@ -53,6 +53,8 @@ void print_lang_error(FILE* stream, langErrorCode error, size_t line, const char
     PRINT_SYNTAX_ERROR_ARG(error, WRONG_KEY_WORD,               "Wrong key word. Expected \"%s\"\n", text);
     PRINT_SYNTAX_ERROR_ARG(error, FUNCTION_REDECLARATION_ERROR, "Function with name \"%s\" already exist!\n", text);
     PRINT_SYNTAX_ERROR_ARG(error, VARIABLE_REDECLARATION_ERROR, "Variable with name \"%s\" already exist!\n", text);
+    PRINT_SYNTAX_ERROR_ARG(error, NO_DECLARATION,               "The variable with name \"%s\" is not declarated!\n", text);
+    PRINT_SYNTAX_ERROR_ARG(error, REPEARED_DECLARATION,         "The name is already declarated! Name: \"%s\" \n", text);
 
     #undef PRINT_ERROR
     #undef PRINT_SYNTAX_ERROR

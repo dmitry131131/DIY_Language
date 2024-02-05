@@ -9,9 +9,10 @@
 #include "LangErrors.h"
 #include "FrontEnd.h"
 
-// TODO Проверить и если нет, то написать проверку на повторную декларацию переменной и функции в данной области видимости
 // Сделать парсинг с помощью таблиц имён - в мейне есть массив с таблицами имён, для каждой функции создаётся своя таблица имён.
 // глобальная таблица имён имеет индекс 0
+
+// BUG Если функция вызывается до её объявления, то она считается как новое имя, хотя это не так
 
 static langErrorCode token_array_ctor(LangTokenArray* token_array, size_t token_array_len);
 static langErrorCode token_array_dtor(LangTokenArray* token_array);
@@ -32,12 +33,14 @@ static TreeSegment*  getPriority3(LangTokenArray* token_array, LangNameTableArra
 static TreeSegment*  getPriority4(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static TreeSegment*  getIf(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static TreeSegment*  getWhile(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment* getBreak(LangTokenArray* token_array, langErrorCode* error);
 static TreeSegment*  getOperatorList(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static TreeSegment*  getOper(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static TreeSegment*  getFuncCall(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static TreeSegment*  getOut(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 
 static TreeSegment* getFuncArgs(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment* getReturn(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static TreeSegment* getFuncCallArgs(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 
 //#################################################################################################//
@@ -201,15 +204,33 @@ static TreeSegment* getDeclaration(LangTokenArray* token_array, LangNameTableArr
 }while(0)
 
 #define ADD_TO_NAME_TABLE(input_name_table, string_ptr, elem_type, del_code) do{                                    \
-    if (!find_in_name_table(input_name_table, string_ptr))                                                          \
+    if (find_in_name_table(input_name_table, string_ptr)                                                            \
+     || find_in_name_table(&(table_array->Array[0]), string_ptr))                                                   \
     {                                                                                                               \
-        if ((*error = add_to_name_table(input_name_table, string_ptr, token_array->Pointer, elem_type)))            \
-        {                                                                                                           \
-            del_code                                                                                                \
-            return nullptr;                                                                                         \
-        }                                                                                                           \
+        del_code                                                                                                    \
+        *error = WRONG_LANG_SYNTAX;                                                                                 \
+        print_lang_error(stderr, REPEARED_DECLARATION, get_line_by_position(token_array), *(string_ptr));           \
+        return nullptr;                                                                                             \
+    }                                                                                                               \
+    if ((*error = add_to_name_table(input_name_table, string_ptr, token_array->Pointer, elem_type)))                \
+    {                                                                                                               \
+        del_code                                                                                                    \
+        return nullptr;                                                                                             \
     }                                                                                                               \
 }while(0)
+
+#define CHECK_IN_NAME_TABLE(input_name_table, string_ptr, del_code)                                                 \
+    size_t table_position = 0;                                                                                      \
+    if ((table_position = find_in_name_table(input_name_table, string_ptr))) {}                                      \
+    else if((table_position = find_in_name_table(&(table_array->Array[0]), string_ptr))) {}                          \
+    else                                                                                                            \
+    {                                                                                                               \
+        del_code                                                                                                    \
+        *error = WRONG_LANG_SYNTAX;                                                                                 \
+        print_lang_error(stderr, NO_DECLARATION, get_line_by_position(token_array), *(string_ptr));                 \
+        return nullptr;                                                                                             \
+    }                                                                                                               \
+    SegmentData data = {.Id = table_position};
 
 static TreeSegment* getFuncDeclaration(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
 {
@@ -299,7 +320,7 @@ static TreeSegment* getFuncDeclaration(LangTokenArray* token_array, LangNameTabl
     val2 = getOper(token_array, table_array, error);
     if (*error)
     {
-        del_segment(val);
+        val4 ? del_segment(val) & del_segment(val4) : del_segment(val);
         return val2;
     }
     
@@ -327,17 +348,7 @@ static TreeSegment* getFuncArgs(LangTokenArray* token_array, LangNameTableArray*
 
     CHECK_TOKEN_TYPE(ID, ;);
 
-    if (find_in_name_table(&(table_array->Array[table_array->Pointer]), &((token_array->Array)[token_array->Pointer].data.text)))                                                          
-    {
-        *error = WRONG_LANG_SYNTAX;
-        print_lang_error(stderr, VARIABLE_REDECLARATION_ERROR, get_line_by_position(token_array), (token_array->Array)[token_array->Pointer].data.text);
-        return nullptr;               
-    }        
-                                                                                           
-    if ((*error = add_to_name_table(&(table_array->Array[table_array->Pointer]), &((token_array->Array)[token_array->Pointer].data.text), token_array->Pointer, VARIABLE)))            
-    {                                                                                                                                                                                                        
-        return nullptr;                                                                                         
-    }                                                                                                           
+    ADD_TO_NAME_TABLE(&(table_array->Array[table_array->Pointer]), &((token_array->Array)[token_array->Pointer].data.text), VARIABLE, ;);
 
     SegmentData data = {.Id = token_array->Pointer};
     val = CreateNode(IDENTIFIER, data, nullptr, nullptr);
@@ -347,6 +358,32 @@ static TreeSegment* getFuncArgs(LangTokenArray* token_array, LangNameTableArray*
 
     data.K_word = KEY_ENUM;
     val = CreateNode(KEYWORD, data, val, nullptr);
+    (token_array->Pointer)++;
+
+    return val;
+}
+
+static TreeSegment* getReturn(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
+{
+    assert(token_array);
+    assert(table_array);
+    assert(error);
+
+    CHECK_KEY_WORD(KEY_RETURN, ;);
+    (token_array->Pointer)++;
+
+    TreeSegment* val = nullptr;
+
+    val = getE(token_array, table_array, error);
+    if (*error) return nullptr;
+
+    SegmentData data = {.K_word = KEY_RETURN};
+    val = CreateNode(KEYWORD, data, nullptr, val);
+
+    data.K_word = KEY_NEXT;
+    val = CreateNode(KEYWORD, data, val, nullptr);
+
+    CHECK_KEY_WORD(KEY_NEXT, del_segment(val););
     (token_array->Pointer)++;
 
     return val;
@@ -371,6 +408,7 @@ static TreeSegment* getDecl(LangTokenArray* token_array, LangNameTableArray* tab
         del_segment(val);
         return nullptr;
     }
+    ADD_TO_NAME_TABLE(&(table_array->Array[table_array->Pointer]), &((token_array->Array)[token_array->Pointer].data.text), VARIABLE, del_segment(val););
 
     TreeSegment* val2 = nullptr;
     if ((token_array->Array)[token_array->Pointer + 1].data.K_word == KEY_ASSIGMENT)
@@ -382,8 +420,6 @@ static TreeSegment* getDecl(LangTokenArray* token_array, LangNameTableArray* tab
     {
         data.Id = token_array->Pointer;
         val2 = CreateNode(IDENTIFIER, data, nullptr, nullptr);
-
-        ADD_TO_NAME_TABLE(&(table_array->Array[table_array->Pointer]), &((token_array->Array)[token_array->Pointer].data.text), VARIABLE, del_segment(val2););
         (token_array->Pointer)++;
     }
     else
@@ -411,12 +447,12 @@ static TreeSegment* getAE(LangTokenArray* token_array, LangNameTableArray* table
     assert(error);
     
     CHECK_TOKEN_TYPE(ID, ;);
-
-    ADD_TO_NAME_TABLE(&(table_array->Array[table_array->Pointer]), &((token_array->Array)[token_array->Pointer].data.text), VARIABLE, ;);
-    SegmentData data = {.Id = token_array->Pointer};
+    
+    CHECK_IN_NAME_TABLE(&(table_array->Array[table_array->Pointer]), &((token_array->Array)[token_array->Pointer].data.text), ;);
+    // Декларация data происходит внутри макроса 
     TreeSegment* val = CreateNode(IDENTIFIER, data, nullptr, nullptr);
     (token_array->Pointer)++;
-
+    
     CHECK_KEY_WORD(KEY_ASSIGMENT, del_segment(val););
     (token_array->Pointer)++;
     
@@ -591,9 +627,8 @@ static TreeSegment* getPriority1(LangTokenArray* token_array, LangNameTableArray
         }
         else
         {
-            ADD_TO_NAME_TABLE(&(table_array->Array[table_array->Pointer]), &((token_array->Array)[token_array->Pointer].data.text), VARIABLE, ;);
-
-            SegmentData data = {.Id = token_array->Pointer};
+            CHECK_IN_NAME_TABLE(&(table_array->Array[table_array->Pointer]), &((token_array->Array)[token_array->Pointer].data.text), ;);
+            // Декларация data происходит внутри макроса 
             val = CreateNode(IDENTIFIER, data, nullptr, nullptr);
         }
     }
@@ -810,6 +845,28 @@ static TreeSegment* getWhile(LangTokenArray* token_array, LangNameTableArray* ta
     return val;
 }
 
+static TreeSegment* getBreak(LangTokenArray* token_array, langErrorCode* error)
+{
+    assert(token_array);
+    assert(error);
+
+    CHECK_KEY_WORD(KEY_BREAK, ;);
+    (token_array->Pointer)++;
+
+    TreeSegment* val = nullptr;
+    SegmentData data = {.K_word = KEY_BREAK};
+
+    val = CreateNode(KEYWORD, data, nullptr, nullptr);
+
+    data.K_word = KEY_NEXT;
+    val = CreateNode(KEYWORD, data, val, nullptr);
+
+    CHECK_KEY_WORD(KEY_NEXT, del_segment(val););
+    (token_array->Pointer)++;
+
+    return val;
+}
+
 static TreeSegment* getOper(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
 {
     assert(token_array);
@@ -850,6 +907,16 @@ static TreeSegment* getOper(LangTokenArray* token_array, LangNameTableArray* tab
 
         case KEY_WHILE:
             val = getWhile(token_array, table_array, error);
+            if (*error) return val;
+            break;
+
+        case KEY_BREAK:
+            val = getBreak(token_array, error);
+            if (*error) return val;
+            break;
+
+        case KEY_RETURN:
+            val = getReturn(token_array, table_array, error);
             if (*error) return val;
             break;
 
@@ -919,6 +986,7 @@ static TreeSegment* getOperatorList(LangTokenArray* token_array, LangNameTableAr
 
 #undef CHECK_BRACKET
 #undef ADD_TO_NAME_TABLE
+#undef CHECK_IN_NAME_TABLE
 #undef CHECK_TOKEN_TYPE
 
 //#################################################################################################//
