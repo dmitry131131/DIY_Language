@@ -13,35 +13,42 @@
 // глобальная таблица имён имеет индекс 0
 
 // BUG Если функция вызывается до её объявления, то она считается как новое имя, хотя это не так
+// TODO Сделать стек фреймы для поддержки рекурсий
 
-static langErrorCode token_array_ctor(LangTokenArray* token_array, size_t token_array_len);
-static langErrorCode token_array_dtor(LangTokenArray* token_array);
-static size_t get_line_by_position(LangTokenArray* token_array);
-static const char* get_text_by_opcode(KeyWords word);
+//#################################################################################################//
 
-static TreeSegment*  getDecl(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
-static TreeSegment*  getFuncDeclaration(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
-static TreeSegment*  getDeclaration(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
-static TreeSegment*  MainTrans(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static langErrorCode getG(TreeData* tree, LangTokenArray* token_array, LangNameTableArray* table_array);
-static TreeSegment*  CreateNode(SegmemtType type, SegmentData data, TreeSegment* left, TreeSegment* right);
-static TreeSegment*  getE(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  MainTrans(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getDeclaration(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getDecl(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+
+static TreeSegment*  getFuncDeclaration(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getFuncArgs(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getReturn(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getFuncCall(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getFuncCallArgs(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+
 static TreeSegment*  getAE(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getE(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static TreeSegment*  getPriority1(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static TreeSegment*  getPriority2(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static TreeSegment*  getPriority3(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static TreeSegment*  getPriority4(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
-static TreeSegment*  getIf(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
-static TreeSegment*  getWhile(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
-static TreeSegment* getBreak(LangTokenArray* token_array, langErrorCode* error);
-static TreeSegment*  getOperatorList(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
-static TreeSegment*  getOper(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
-static TreeSegment*  getFuncCall(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static TreeSegment*  getOut(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 
-static TreeSegment* getFuncArgs(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
-static TreeSegment* getReturn(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
-static TreeSegment* getFuncCallArgs(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getOperatorList(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getOper(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getIf(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getWhile(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
+static TreeSegment*  getBreak(LangTokenArray* token_array, langErrorCode* error);
+
+//#################################################################################################//
+
+static langErrorCode token_array_ctor(LangTokenArray* token_array, size_t token_array_len);
+static langErrorCode token_array_dtor(LangTokenArray* token_array);
+static TreeSegment*  CreateNode(SegmemtType type, SegmentData data, TreeSegment* left, TreeSegment* right);
+static size_t        get_line_by_position(LangTokenArray* token_array);
+static const char*   get_text_by_opcode(KeyWords word);
 
 //#################################################################################################//
 //------------------------------------> Parser function <------------------------------------------//
