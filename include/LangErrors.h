@@ -20,7 +20,8 @@ enum langErrorCode
     VARIABLE_REDECLARATION_ERROR         = 1 << 13,
     PROCESSOR_MEMORY_OVER                = 1 << 14,
     REPEARED_DECLARATION                 = 1 << 15,
-    NO_DECLARATION                       = 1 << 16
+    NO_DECLARATION                       = 1 << 16,
+    NO_MAIN_FUNCTION                     = 1 << 17
 };
 
 void print_lang_error(FILE* stream, langErrorCode error, size_t line, const char* text = nullptr);

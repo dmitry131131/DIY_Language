@@ -9,6 +9,8 @@
 #include "LangErrors.h"
 #include "FrontEnd.h"
 
+static bool Main_function_flag = false;
+
 // Сделать парсинг с помощью таблиц имён - в мейне есть массив с таблицами имён, для каждой функции создаётся своя таблица имён.
 // глобальная таблица имён имеет индекс 0
 
@@ -99,6 +101,11 @@ langErrorCode lang_parser(const char* filename, TreeData* tree, LangNameTableArr
     {
         printf("In position: %lu\n", token_array.Array[token_array.Pointer].position);
         RETURN(error);
+    }
+
+    if (!Main_function_flag)        // Проверка на наличие точки входа
+    {
+        RETURN(NO_MAIN_FUNCTION);
     }
 
     RETURN(NO_LANG_ERRORS);
@@ -256,6 +263,11 @@ static TreeSegment* getFuncDeclaration(LangTokenArray* token_array, LangNameTabl
     (token_array->Pointer)++;
 
     CHECK_TOKEN_TYPE(ID, del_segment(val2););
+
+    if (!strcmp("главная", (token_array->Array)[token_array->Pointer].data.text))
+    {
+        Main_function_flag = true;
+    }
 
     if (find_in_name_table(&(table_array->Array[0]), &((token_array->Array)[token_array->Pointer].data.text)))
     {
