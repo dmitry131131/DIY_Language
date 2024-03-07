@@ -48,6 +48,9 @@ int main()
     tree_dtor(&new_tree);
     */
 
+    tree_dump(&tree);
+    name_table_array_dump(&table);
+
     FILE* out_file = fopen("compiled_file.asm", "w");
 
     if ((error = lang_compiler(&tree, &table, out_file)))
@@ -58,8 +61,6 @@ int main()
     
     fclose(out_file);
 
-    tree_dump(&tree);
-    name_table_array_dump(&table);
     name_table_array_dtor(&table);
     tree_dtor(&tree);
 

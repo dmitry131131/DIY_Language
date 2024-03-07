@@ -45,16 +45,16 @@ langErrorCode lang_compiler(TreeData* tree, LangNameTableArray* table_array, FIL
 
     outputBuffer buffer = {.filePointer = asm_file, .AUTO_FLUSH = true};
 
-    print_to_buffer(&buffer, "jmp main         ; Jump to start point\n"
-                             "push rpx         ; save old rpx value\n");        // Вход в программу
+    print_to_buffer(&buffer, "push rpx          ; save old rpx value\n"
+                             "call main         ; Jump to start point\n");        // Вход в программу
+
+    print_to_buffer(&buffer, "hlt               ; End of programm\n");        // Завершение программы
 
     if ((error = lang_compiler_recursive(tree->root, table_array, &Global_RAM_Table, &buffer)))
     {
         fclose(asm_file);
         return error;
     }
-
-    print_to_buffer(&buffer, "hlt               ; End of programm\n");        // Завершение программы
     
     write_buffer_to_file(&buffer);
     
@@ -85,21 +85,21 @@ static langErrorCode lang_compiler_recursive(const TreeSegment* segment, const L
             return error;
         }
         break;
-    // TODO Написать функцию декларации переменных
+    
     case VAR_DECLARATION:
         if ((error = compile_var_declaration(segment, table_array, RAM_Table, buffer)))
         {
             return error;
         }
         break;
-
+    
     case CALL:
         if ((error = compile_function_call(segment, table_array, RAM_Table, buffer)))
         {
             return error;
         }
         break;
-
+    
     case KEYWORD:
         if ((error = compile_keyword(segment, table_array, RAM_Table, buffer)))
         {
@@ -154,13 +154,22 @@ static langErrorCode compile_function_call(const TreeSegment* segment, const Lan
 
     langErrorCode error = NO_LANG_ERRORS;
 
-    print_to_buffer(buffer, "; Saving memory stack pointer\n",
-                            "push rpx\n");
+    print_to_buffer(buffer, "; Saving memory stack pointer\n"
+                            "push rpx       ; Save old stack pointr\n"
+                            "push rpx\n"
+                            "push %lu\n"
+                            "add\n"
+                            "pop rpx\n", RAM_Table->Pointer);
 
-    if ((error = compile_parameters_in_call(segment, &(table_array->Array[0]), RAM_Table, buffer)))        // BUG Сделать передачу правильной таблицы имён
-    {   
-        return error;
+    if (segment->left)
+    {
+        if ((error = compile_parameters_in_call(segment, &(table_array->Array[0]), RAM_Table, buffer)))        // BUG Сделать передачу правильной таблицы имён
+        {   
+            return error;
+        }
     }
+
+    print_to_buffer(buffer, "call Function_%lu\n", segment->right->data.Id);
 
     return error;
 }
@@ -202,11 +211,15 @@ static langErrorCode compile_function_definition(const TreeSegment* segment, con
 
     const char* function_name = find_in_name_table_by_code(&(table_array->Array[0]), segment->data.Id);
 
-    print_to_buffer(buffer, "; Function declaration with name: %s\n", function_name);
+    print_to_buffer(buffer, "\n\n; Function declaration with name: %s\n", function_name);
 
     if (!strcmp("главная", function_name))
     {
         print_to_buffer(buffer, ":main\n");
+    }
+    else
+    {
+        print_to_buffer(buffer, ":Function_%lu\n", segment->data.Id);
     }
 
     const TreeSegment* parameter_segment = segment->right;
@@ -225,7 +238,8 @@ static langErrorCode compile_function_definition(const TreeSegment* segment, con
         return error;
     }
 
-    print_to_buffer(buffer, "pop rpx\n"); // Восстановление указателя на стековый кадр после обработки функции
+    print_to_buffer(buffer, "pop rpx\n"
+                            "ret\n"); // Восстановление указателя на стековый кадр после обработки функции
 
     return error;
 }

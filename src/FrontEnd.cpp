@@ -15,9 +15,10 @@ static bool Main_function_flag = false;
 // глобальная таблица имён имеет индекс 0
 
 // BUG Если функция вызывается до её объявления, то она считается как новое имя, хотя это не так
-// TODO Сделать стек фреймы для поддержки рекурсий
 
 //#################################################################################################//
+
+static langErrorCode getFunctionsNames(LangTokenArray* token_array, LangNameTable* name_table);
 
 static langErrorCode getG(TreeData* tree, LangTokenArray* token_array, LangNameTableArray* table_array);
 static TreeSegment*  MainTrans(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
@@ -112,6 +113,33 @@ langErrorCode lang_parser(const char* filename, TreeData* tree, LangNameTableArr
     #undef RETURN
 }
 
+static langErrorCode getFunctionsNames(LangTokenArray* token_array, LangNameTable* name_table)
+{
+    assert(token_array);
+    assert(name_table);
+
+    langErrorCode error = NO_LANG_ERRORS;
+
+    for (size_t i = 0; i < token_array->size; i++)
+    {
+        if ((token_array->Array)[i].type != KEY_WORD || (token_array->Array)[i].data.K_word != KEY_DEF)
+        {
+            continue;
+        }
+        if ((token_array->Array)[i+1].type != KEY_WORD || (token_array->Array)[i+1].data.K_word != KEY_NUMBER)
+        {
+            continue;
+        }
+
+        if ((error = add_to_name_table(name_table, &((token_array->Array)[i+2].data.text), i+2, FUNCTION)))
+        {
+            return error;
+        }
+    }
+
+    return error;
+}
+
 //#################################################################################################//
 //--------------------------------> Recurse descent functions <------------------------------------//
 //#################################################################################################//
@@ -126,6 +154,11 @@ static langErrorCode getG(TreeData* tree, LangTokenArray* token_array, LangNameT
 
     // Создание нулевой(глобальной) таблицы имён
     if ((error = name_table_ctor(&(table_array->Array[0]))))
+    {
+        return error;
+    }
+
+    if ((error = getFunctionsNames(token_array, &(table_array->Array[0]))))
     {
         return error;
     }
@@ -235,8 +268,8 @@ static TreeSegment* getDeclaration(LangTokenArray* token_array, LangNameTableArr
 
 #define CHECK_IN_NAME_TABLE(input_name_table, string_ptr, del_code)                                                 \
     size_t table_position = 0;                                                                                      \
-    if ((table_position = find_in_name_table(input_name_table, string_ptr))) {}                                      \
-    else if((table_position = find_in_name_table(&(table_array->Array[0]), string_ptr))) {}                          \
+    if ((table_position = find_in_name_table(input_name_table, string_ptr))) {}                                     \
+    else if((table_position = find_in_name_table(&(table_array->Array[0]), string_ptr))) {}                         \
     else                                                                                                            \
     {                                                                                                               \
         del_code                                                                                                    \
@@ -268,7 +301,7 @@ static TreeSegment* getFuncDeclaration(LangTokenArray* token_array, LangNameTabl
     {
         Main_function_flag = true;
     }
-
+    /*
     if (find_in_name_table(&(table_array->Array[0]), &((token_array->Array)[token_array->Pointer].data.text)))
     {
         *error = WRONG_LANG_SYNTAX;
@@ -279,7 +312,7 @@ static TreeSegment* getFuncDeclaration(LangTokenArray* token_array, LangNameTabl
     
     // Запись о новой функции в глобальную таблицу имён
     add_to_name_table(&(table_array->Array[0]), &((token_array->Array)[token_array->Pointer].data.text), token_array->Pointer, FUNCTION);
-
+    */
     // Запись информации в локальную таблицу имён
     (table_array->size)++;
     table_array->Pointer = table_array->size;
