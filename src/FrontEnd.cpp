@@ -131,6 +131,13 @@ static langErrorCode getFunctionsNames(LangTokenArray* token_array, LangNameTabl
             continue;
         }
 
+        if (find_in_name_table(name_table, &((token_array->Array)[i+2].data.text)))
+        {
+            token_array->Pointer = i+2;
+            print_lang_error(stderr, FUNCTION_REDECLARATION_ERROR, get_line_by_position(token_array), (token_array->Array)[i+2].data.text);
+            return WRONG_LANG_SYNTAX;
+        }
+
         if ((error = add_to_name_table(name_table, &((token_array->Array)[i+2].data.text), i+2, FUNCTION)))
         {
             return error;
