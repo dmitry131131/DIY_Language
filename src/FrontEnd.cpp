@@ -332,6 +332,7 @@ static TreeSegment* getFuncDeclaration(LangTokenArray* token_array, LangNameTabl
 
     data.Id = token_array->Pointer;
     TreeSegment* val = CreateNode(FUNCTION_DEFINITION, data, val2, nullptr);
+    val->left->parent = val;
 
     (token_array->Pointer)++;
 
@@ -385,11 +386,15 @@ static TreeSegment* getFuncDeclaration(LangTokenArray* token_array, LangNameTabl
     
     data.stringPtr = NULL;
     val2 = CreateNode(PARAMETERS, data, val4, val2);
+    if (val4) val2->left->parent  = val2;
+    val2->right->parent = val2;
 
     val->right = val2;
+    val->right->parent = val;
 
     data.K_word = KEY_NEXT;
     val = CreateNode(KEYWORD, data, val, nullptr);
+    val->left->parent = val;
 
     table_array->Pointer = 0;
     return val;
@@ -414,9 +419,11 @@ static TreeSegment* getFuncArgs(LangTokenArray* token_array, LangNameTableArray*
 
     data.K_word = KEY_NUMBER;
     val = CreateNode(KEYWORD, data, val, nullptr);
+    val->left->parent = val;
 
     data.K_word = KEY_ENUM;
     val = CreateNode(KEYWORD, data, val, nullptr);
+    val->left->parent = val;
     (token_array->Pointer)++;
 
     return val;
@@ -438,9 +445,11 @@ static TreeSegment* getReturn(LangTokenArray* token_array, LangNameTableArray* t
 
     SegmentData data = {.K_word = KEY_RETURN};
     val = CreateNode(KEYWORD, data, nullptr, val);
+    val->right->parent = val;
 
     data.K_word = KEY_NEXT;
     val = CreateNode(KEYWORD, data, val, nullptr);
+    val->left->parent = val;
 
     CHECK_KEY_WORD(KEY_NEXT, del_segment(val););
     (token_array->Pointer)++;
@@ -495,6 +504,7 @@ static TreeSegment* getDecl(LangTokenArray* token_array, LangNameTableArray* tab
     
     data.K_word = KEY_NEXT;
     val = CreateNode(KEYWORD, data, val, nullptr);
+    val->left->parent = val;
 
     return val;
 }
@@ -524,6 +534,8 @@ static TreeSegment* getAE(LangTokenArray* token_array, LangNameTableArray* table
 
     data.K_word = KEY_ASSIGMENT;
     val = CreateNode(KEYWORD, data, val2, val);
+    val->left->parent  = val;
+    val->right->parent = val;
 
     return val;
 }
@@ -537,6 +549,8 @@ static TreeSegment* getAE(LangTokenArray* token_array, LangNameTableArray* table
                                                     \
     SegmentData data = {.K_word = temp_key_word};   \
     val = CreateNode(KEYWORD, data, val, val2);     \
+    val->left->parent  = val;                       \
+    val->right->parent = val;                       \
 }while(0)
 
 static TreeSegment* getE(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error)
@@ -863,9 +877,12 @@ static TreeSegment* getIf(LangTokenArray* token_array, LangNameTableArray* table
 
     SegmentData data = {.K_word = KEY_IF};
     val = CreateNode(KEYWORD, data, val, val2);
+    (val->left)->parent  = val;
+    (val->right)->parent = val;
 
     data.K_word = KEY_NEXT;
     val = CreateNode(KEYWORD, data, val, nullptr);
+    val->left->parent = val;
 
     return val;
 }
@@ -897,9 +914,12 @@ static TreeSegment* getWhile(LangTokenArray* token_array, LangNameTableArray* ta
 
     SegmentData data = {.K_word = KEY_WHILE};
     val = CreateNode(KEYWORD, data, val, val2);
+    val->left->parent  = val;
+    val->right->parent = val;
 
     data.K_word = KEY_NEXT;
     val = CreateNode(KEYWORD, data, val, nullptr);
+    val->left->parent = val;
 
     return val;
 }
@@ -919,6 +939,7 @@ static TreeSegment* getBreak(LangTokenArray* token_array, langErrorCode* error)
 
     data.K_word = KEY_NEXT;
     val = CreateNode(KEYWORD, data, val, nullptr);
+    val->left->parent = val;
 
     CHECK_KEY_WORD(KEY_NEXT, del_segment(val););
     (token_array->Pointer)++;
@@ -953,6 +974,7 @@ static TreeSegment* getOper(LangTokenArray* token_array, LangNameTableArray* tab
         
         SegmentData data = {.K_word = KEY_NEXT};
         val = CreateNode(KEYWORD, data, val, nullptr);
+        val->left->parent = val;        // TODO возможно будет работать не всегда
     }
     else if ((token_array->Array)[token_array->Pointer].type == KEY_WORD)
     {

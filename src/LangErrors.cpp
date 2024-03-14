@@ -19,7 +19,7 @@ void print_lang_error(FILE* stream, langErrorCode error, size_t line, const char
     #define PRINT_SYNTAX_ERROR(error, CODE, message) do{                                            \
         if ((error) & CODE)                                                                         \
         {                                                                                           \
-            color_fprintf(stream, COLOR_RED, STYLE_UNDERLINED, "Syntax error on line:");            \
+            color_fprintf(stream, COLOR_RED, STYLE_UNDERLINED, "Syntax error in line:");            \
             fprintf(stream, " ");                                                                   \
             color_fprintf(stream, COLOR_DEFAULT, STYLE_INVERT_C, "%lu", line);                      \
             fprintf(stream, " ");                                                                   \
@@ -30,7 +30,7 @@ void print_lang_error(FILE* stream, langErrorCode error, size_t line, const char
     #define PRINT_SYNTAX_ERROR_ARG(error, CODE, message, text) do {                                 \
         if ((error) & CODE)                                                                         \
         {                                                                                           \
-            color_fprintf(stream, COLOR_RED, STYLE_UNDERLINED, "Syntax error on line:");            \
+            color_fprintf(stream, COLOR_RED, STYLE_UNDERLINED, "Syntax error in line:");            \
             fprintf(stream, " ");                                                                   \
             color_fprintf(stream, COLOR_DEFAULT, STYLE_INVERT_C, "%lu", line);                      \
             fprintf(stream, " ");                                                                   \

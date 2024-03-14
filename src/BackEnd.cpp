@@ -17,6 +17,7 @@
     В регистре rpx хранится адрес начала текущего стекового кадра. При вызове функции в стек пушится rpx, а затем в rpx кладётся текущий адрес.
     Теперь это начало нового стекового кадра. При этом адресация к переменным осуществляется по смещению от rpx. 
 */
+static size_t scope_counter = 0;
 
 static langErrorCode lang_compiler_recursive(const TreeSegment* segment, const LangNameTableArray* table_array, memoryTable* RAM_Table, outputBuffer* buffer);
 //--------------------------------------------------------------------------------------
@@ -171,6 +172,11 @@ static langErrorCode compile_function_call(const TreeSegment* segment, const Lan
 
     print_to_buffer(buffer, "call Function_%lu\n", segment->right->data.Id);
 
+    if (segment->parent->data.K_word != KEY_NEXT)
+    {
+        print_to_buffer(buffer, "push rax\n");
+    }
+
     return error;
 }
 
@@ -323,6 +329,38 @@ static langErrorCode compile_var_declaration(const TreeSegment* segment, const L
     }                                                                                               \
 }while(0)  
 
+#define ADD_ZERO_BRANCH_COMMAND(_KEY_WORD_, _COMENT_TEXT_, _COMMAND_TEXT_)                          \
+case _KEY_WORD_:                                                                                    \
+    print_to_buffer(buffer, _COMENT_TEXT_);                                                         \
+                                                                                                    \
+    _COMMAND_TEXT_                                                                                  \
+    break;                                                                                          \
+
+#define ADD_RIGHT_BRANCH_COMMAND(_KEY_WORD_, _COMENT_TEXT_, _COMMAND_TEXT_)                         \
+case _KEY_WORD_:                                                                                    \
+    print_to_buffer(buffer, _COMENT_TEXT_);                                                         \
+    RECURSE_RIGHT_BRANCH;                                                                           \
+                                                                                                    \
+    _COMMAND_TEXT_                                                                                  \
+    break;                                                                                          \
+
+#define ADD_DOUBLE_BRANCH_COMMAND(_KEY_WORD_, _COMENT_TEXT_, _COMMAND_TEXT_)                        \
+    case _KEY_WORD_:                                                                                \
+    print_to_buffer(buffer, _COMENT_TEXT_);                                                         \
+    RECURSE_LEFT_BRANCH;                                                                            \
+    RECURSE_RIGHT_BRANCH;                                                                           \
+                                                                                                    \
+    _COMMAND_TEXT_                                                                                  \
+    break;                                                                                          \
+
+#define ADD_LEFT_BRANCH_COMMAND(_KEY_WORD_, _COMENT_TEXT_, _COMMAND_TEXT_)                          \
+    case _KEY_WORD_:                                                                                \
+    print_to_buffer(buffer, _COMENT_TEXT_);                                                         \
+    RECURSE_LEFT_BRANCH;                                                                            \
+                                                                                                    \
+    _COMMAND_TEXT_                                                                                  \
+    break;                                                                                          \
+
 static langErrorCode compile_keyword(const TreeSegment* segment, const LangNameTableArray* table_array, memoryTable* RAM_Table, outputBuffer* buffer)
 {
     assert(segment);
@@ -331,25 +369,55 @@ static langErrorCode compile_keyword(const TreeSegment* segment, const LangNameT
 
     langErrorCode error = NO_LANG_ERRORS;
 
+    size_t temp_scope_counter = 0;
+
     switch ((size_t) segment->data.K_word)
     {
-    case KEY_NEXT:
+
+    ADD_ZERO_BRANCH_COMMAND(KEY_IN, "; Print in()\n", print_to_buffer(buffer, "in\n"););
+
+    ADD_LEFT_BRANCH_COMMAND(KEY_ASSIGMENT, "",
+                            print_to_buffer(buffer, "pop [rpx+%lu]\n", find_in_RAM_table(RAM_Table, segment->right->data.Id)););
+
+    ADD_RIGHT_BRANCH_COMMAND(KEY_OUT,           "; Print function\n",  print_to_buffer(buffer, "out\n"););
+    ADD_RIGHT_BRANCH_COMMAND(KEY_SIN,           "; Print sin\n",       print_to_buffer(buffer, "sin\n"););
+    ADD_RIGHT_BRANCH_COMMAND(KEY_COS,           "; Print cos\n",       print_to_buffer(buffer, "cos\n"););
+    ADD_RIGHT_BRANCH_COMMAND(KEY_RETURN,        "; Return\n",          print_to_buffer(buffer, "pop rax\n"
+                                                                                               "pop rpx\n"
+                                                                                               "ret\n"););
+    
+    ADD_DOUBLE_BRANCH_COMMAND(KEY_NEXT,         "",                    ;);
+    ADD_DOUBLE_BRANCH_COMMAND(KEY_PLUS,         "; Print summ node\n", print_to_buffer(buffer, "add\n"););
+    ADD_DOUBLE_BRANCH_COMMAND(KEY_MINUS,        "; Print summ node\n", print_to_buffer(buffer, "sub\n"););
+    ADD_DOUBLE_BRANCH_COMMAND(KEY_MUL,          "; Print summ node\n", print_to_buffer(buffer, "mul\n"););
+    ADD_DOUBLE_BRANCH_COMMAND(KEY_DIV,          "; Print summ node\n", print_to_buffer(buffer, "div\n"););
+
+    ADD_DOUBLE_BRANCH_COMMAND(KEY_MORE,         "",                    print_to_buffer(buffer, "jbe Skip_scope_%lu\n", scope_counter););
+    ADD_DOUBLE_BRANCH_COMMAND(KEY_MORE_EQUAL,   "",                    print_to_buffer(buffer, "jb Skip_scope_%lu\n",  scope_counter););
+    ADD_DOUBLE_BRANCH_COMMAND(KEY_LESS,         "",                    print_to_buffer(buffer, "jae Skip_scope_%lu\n", scope_counter););
+    ADD_DOUBLE_BRANCH_COMMAND(KEY_LESS_EQUAL,   "",                    print_to_buffer(buffer, "ja Skip_scope_%lu\n",  scope_counter););
+    ADD_DOUBLE_BRANCH_COMMAND(KEY_EQUAL,        "",                    print_to_buffer(buffer, "jne Skip_scope_%lu\n", scope_counter););
+    ADD_DOUBLE_BRANCH_COMMAND(KEY_NOT_EQUAL,    "",                    print_to_buffer(buffer, "je Skip_scope_%lu\n",  scope_counter););
+
+    case KEY_IF:
+        print_to_buffer(buffer, "; If %lu section\n", scope_counter);
+        temp_scope_counter = scope_counter;                             // save current scope counter
         RECURSE_LEFT_BRANCH;
-        RECURSE_RIGHT_BRANCH;   
+        scope_counter++;
+        RECURSE_RIGHT_BRANCH;
+        print_to_buffer(buffer, ":Skip_scope_%lu        ; End of if %lu section\n\n", temp_scope_counter, temp_scope_counter);
+
         break;
-    case KEY_OUT:
+/*
+    case KEY_WHILE:
+        print_to_buffer(buffer, "; While %lu section\n", scope_counter);
+        temp_scope_counter = scope_counter;                             // save current scope counter
+        RECURSE_LEFT_BRANCH;
+        scope_counter++;
         RECURSE_RIGHT_BRANCH;
 
-        print_to_buffer(buffer, "out        ; Print function\n");
         break;
-
-    case KEY_ASSIGMENT:
-
-        RECURSE_LEFT_BRANCH;
-        print_to_buffer(buffer, "pop [rpx+%lu]\n", find_in_RAM_table(RAM_Table, segment->right->data.Id));
-
-        break;
-    
+*/
     default:
         break;
     }
