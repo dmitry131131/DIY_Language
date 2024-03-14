@@ -24,7 +24,7 @@ static langErrorCode lang_compiler_recursive(const TreeSegment* segment, const L
 static langErrorCode compile_function_definition(const TreeSegment* segment, const LangNameTableArray* table_array, outputBuffer* buffer);
 static langErrorCode compile_parameters_in_definition(const TreeSegment* segment, const LangNameTable* name_table, memoryTable* RAM_Table, outputBuffer* buffer);
 static langErrorCode compile_function_call(const TreeSegment* segment, const LangNameTableArray* table_array, memoryTable* RAM_Table, outputBuffer* buffer);
-static langErrorCode compile_parameters_in_call(const TreeSegment* segment, const LangNameTable* name_table, memoryTable* RAM_Table, outputBuffer* buffer);
+static langErrorCode compile_parameters_in_call(const TreeSegment* segment, const LangNameTableArray* table_array, memoryTable* RAM_Table, outputBuffer* buffer);
 //-------------------------------------------------------------------------------------
 
 static langErrorCode compile_keyword(const TreeSegment* segment, const LangNameTableArray* table_array, memoryTable* RAM_Table, outputBuffer* buffer);
@@ -155,20 +155,20 @@ static langErrorCode compile_function_call(const TreeSegment* segment, const Lan
 
     langErrorCode error = NO_LANG_ERRORS;
 
+    if (segment->left)
+    {
+        if ((error = compile_parameters_in_call(segment->left, table_array, RAM_Table, buffer)))    
+        {   
+            return error;
+        }
+    }
+
     print_to_buffer(buffer, "; Saving memory stack pointer\n"
                             "push rpx       ; Save old stack pointr\n"
                             "push rpx\n"
                             "push %lu\n"
                             "add\n"
                             "pop rpx\n", RAM_Table->Pointer);
-
-    if (segment->left)
-    {
-        if ((error = compile_parameters_in_call(segment, &(table_array->Array[0]), RAM_Table, buffer)))        // BUG Сделать передачу правильной таблицы имён
-        {   
-            return error;
-        }
-    }
 
     print_to_buffer(buffer, "call Function_%lu\n", segment->right->data.Id);
 
@@ -180,23 +180,23 @@ static langErrorCode compile_function_call(const TreeSegment* segment, const Lan
     return error;
 }
 
-static langErrorCode compile_parameters_in_call(const TreeSegment* segment, const LangNameTable* name_table, memoryTable* RAM_Table, outputBuffer* buffer)
+static langErrorCode compile_parameters_in_call(const TreeSegment* segment, const LangNameTableArray* table_array, memoryTable* RAM_Table, outputBuffer* buffer)
 {
     assert(segment);
-    assert(name_table);
+    assert(table_array);
     assert(RAM_Table);
     assert(buffer);
 
     langErrorCode error = NO_LANG_ERRORS; // BUG параметры должны быть уже определены и находиться в RAM_Table
-
-    print_to_buffer(buffer, "; Parameter with name: %s\n", find_in_name_table_by_code(name_table, segment->left->left->data.Id));
-    print_to_buffer(buffer, "push [rpx+%lu]\n", RAM_Table->Pointer);            //BUG адресация к переменным
-
-    (RAM_Table->Pointer)++;
+    print_to_buffer(buffer, "; Compile parameter\n");
+    if ((error = lang_compiler_recursive(segment->left, table_array, RAM_Table, buffer)))
+    {
+        return error;
+    }
 
     if (segment->right)
     {
-        if ((error = compile_parameters_in_call(segment->right, name_table, RAM_Table, buffer)))
+        if ((error = compile_parameters_in_call(segment->right, table_array, RAM_Table, buffer)))
         {
             return error;
         }
@@ -232,11 +232,15 @@ static langErrorCode compile_function_definition(const TreeSegment* segment, con
 
     if (parameter_segment->left)
     {
-        print_to_buffer(buffer, "; Accepting parameners\n");
-        if ((error = compile_parameters_in_definition(parameter_segment->left, find_name_table(table_array, segment->data.Id), &RAM_Table, buffer)))
+        print_to_buffer(buffer, "; Save old rpx value in rbx\n"
+                                "pop rbx\n"
+                                "; Accepting parameners\n");
+        if ((error = compile_parameters_in_definition(parameter_segment->left, find_name_table(table_array, segment->right->data.Id), &RAM_Table, buffer)))
         {
             return error;
         }
+        print_to_buffer(buffer, "; Repair old rpx value to stack\n"
+                                "push rbx\n");
     }
 
     if ((error = lang_compiler_recursive(parameter_segment->right, table_array, &RAM_Table, buffer)))
@@ -263,12 +267,7 @@ static langErrorCode compile_parameters_in_definition(const TreeSegment* segment
         return error;
     }
     print_to_buffer(buffer, "; Parameter declaration with name: %s\n", find_in_name_table_by_code(name_table, segment->left->left->data.Id));
-    print_to_buffer(buffer, "pop [rpx+%lu]\n", RAM_Table->Pointer);
-
-    if ((error = add_to_RAM_Table(RAM_Table, segment->left->left->data.Id)))
-    {
-        return error;
-    }
+    print_to_buffer(buffer, "pop [rpx+%lu]\n", RAM_Table->Pointer - 1);
 
     if (segment->right)
     {
