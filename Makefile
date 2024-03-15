@@ -15,13 +15,13 @@ TARGET = lang
 SourcePrefix = src/
 BuildPrefix = build/
 BuildFolder = build
-Include = -Iinclude -Ilib/Simple_tree/include -Ilib/Color_console_output/include -Ilib/Data_buffer/include 
+Include = -Iinclude -Ilib/Simple_tree/include -Ilib/Color_console_output/include -Ilib/Data_buffer/include -Ilib/Stack_task/include
 
 Sources = FrontEnd.cpp BackEnd.cpp LangErrors.cpp Output.cpp NameTable.cpp Lexer.cpp TreeReader.cpp
 Main = main.cpp
 
 Libs = -Llib/Simple_tree/build/ -lSimpleTree -Llib/Simple_tree/lib/Color_console_output/build/ -lColor_output\
- -Llib/Simple_tree/lib/Data_buffer/build/ -lDataBuffer
+ -Llib/Simple_tree/lib/Data_buffer/build/ -lDataBuffer -Llib/Stack_task/build -lStack_task
 
 Source = $(addprefix $(SourcePrefix), $(Sources))
 MainObject = $(patsubst %.cpp, $(BuildPrefix)%.o, $(Main))
@@ -34,6 +34,7 @@ all : prepare folder $(TARGET)
 
 prepare: 
 	cd lib/Simple_tree && make
+	cd lib/Stack_task && make
 
 $(BuildPrefix)%.o : $(SourcePrefix)%.cpp
 	@echo [CXX] -c $< -o $@
@@ -45,6 +46,7 @@ $(TARGET) : $(objects) $(MainObject)
 
 clean :
 	cd lib/Simple_tree && make clean
+	cd lib/Stack_task && make clean
 	rm $(BuildFolder)/*.o
 	rm $(TARGET)
 

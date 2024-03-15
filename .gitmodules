@@ -7,3 +7,6 @@
 [submodule "lib/Data_buffer"]
 	path = lib/Data_buffer
 	url = https://github.com/dmitry131131/Data_buffer.git
+[submodule "lib/Stack_task"]
+	path = lib/Stack_task
+	url = https://github.com/dmitry131131/Stack_task.git
