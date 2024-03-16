@@ -43,7 +43,7 @@ static TreeSegment*  getOperatorList(LangTokenArray* token_array, LangNameTableA
 static TreeSegment*  getOper(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static TreeSegment*  getIf(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
 static TreeSegment*  getWhile(LangTokenArray* token_array, LangNameTableArray* table_array, langErrorCode* error);
-static TreeSegment*  getBreak(LangTokenArray* token_array, langErrorCode* error);
+static TreeSegment*  getBreak_Continue(KeyWords type, LangTokenArray* token_array, langErrorCode* error);
 
 //#################################################################################################//
 
@@ -924,16 +924,15 @@ static TreeSegment* getWhile(LangTokenArray* token_array, LangNameTableArray* ta
     return val;
 }
 
-static TreeSegment* getBreak(LangTokenArray* token_array, langErrorCode* error)
+static TreeSegment* getBreak_Continue(KeyWords type, LangTokenArray* token_array, langErrorCode* error)
 {
     assert(token_array);
     assert(error);
 
-    CHECK_KEY_WORD(KEY_BREAK, ;);
     (token_array->Pointer)++;
 
     TreeSegment* val = nullptr;
-    SegmentData data = {.K_word = KEY_BREAK};
+    SegmentData data = {.K_word = type};
 
     val = CreateNode(KEYWORD, data, nullptr, nullptr);
 
@@ -991,8 +990,13 @@ static TreeSegment* getOper(LangTokenArray* token_array, LangNameTableArray* tab
             if (*error) return val;
             break;
 
+        case KEY_CONTINUE:
+            val = getBreak_Continue(KEY_CONTINUE, token_array, error);
+            if (*error) return val;
+            break;
+
         case KEY_BREAK:
-            val = getBreak(token_array, error);
+            val = getBreak_Continue(KEY_BREAK, token_array, error);
             if (*error) return val;
             break;
 

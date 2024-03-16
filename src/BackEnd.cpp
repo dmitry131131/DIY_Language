@@ -76,8 +76,6 @@ langErrorCode lang_compiler(TreeData* tree, LangNameTableArray* table_array, FIL
 // Для этого нужно будет написать функцию прохода по массиву лексемм, с целью занесания в таблицу имён большей информации о функциях(кол-во  аргументов) 
 // TODO Обработка глобальных переменных
 
-// TODO Написать обработку while и brake
-
 // Нельзя использоввать метки русскими буквами
 
 static langErrorCode lang_compiler_recursive(const TreeSegment* segment, const LangNameTableArray* table_array, memoryTable* RAM_Table, outputBuffer* buffer)
@@ -383,8 +381,9 @@ static langErrorCode compile_keyword(const TreeSegment* segment, const LangNameT
     switch ((size_t) segment->data.K_word)
     {
 
-    ADD_ZERO_BRANCH_COMMAND(KEY_IN,    "; Print in()\n", print_to_buffer(buffer, "in\n"););
-    ADD_ZERO_BRANCH_COMMAND(KEY_BREAK, "",               print_to_buffer(buffer, "jmp Skip_scope_%lu     ; Break\n", last_while_scope);)
+    ADD_ZERO_BRANCH_COMMAND(KEY_IN,         "; Print in()\n", print_to_buffer(buffer, "in\n"););
+    ADD_ZERO_BRANCH_COMMAND(KEY_BREAK,      "",               print_to_buffer(buffer, "jmp Skip_scope_%lu     ; Break\n", last_while_scope););
+    ADD_ZERO_BRANCH_COMMAND(KEY_CONTINUE,   "",               print_to_buffer(buffer, "jmp While_next_%lu     ; Continue\n", last_while_scope););
 
     ADD_LEFT_BRANCH_COMMAND(KEY_ASSIGMENT, "",
                             print_to_buffer(buffer, "pop [rpx+%lu]\n", find_in_RAM_table(RAM_Table, segment->right->data.Id)););
