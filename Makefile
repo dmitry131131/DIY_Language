@@ -34,7 +34,7 @@ all : prepare folder $(TARGET)
 
 prepare: 
 	cd lib/Simple_tree && make
-	cd lib/Stack_task && make
+	cd lib/Stack_task && make 
 
 $(BuildPrefix)%.o : $(SourcePrefix)%.cpp
 	@echo [CXX] -c $< -o $@
