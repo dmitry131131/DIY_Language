@@ -120,12 +120,9 @@ static langErrorCode compile_global_variables(const TreeSegment* segment, LangNa
     return error;
 }
 
-// TODO Написать подробные коментарии в ассемблерный файл(что из чего получено и как)
-
 // TODO Написать проверку кол-ва аргументов переданных в функцию с максимальным числом аргкментов
 // TODO Написать проверку вызова несуществующих функций
 // Для этого нужно будет написать функцию прохода по массиву лексемм, с целью занесания в таблицу имён большей информации о функциях(кол-во  аргументов) 
-// TODO Обработка глобальных переменных
 
 // Нельзя использоввать метки русскими буквами
 
@@ -227,13 +224,15 @@ static langErrorCode compile_function_call(const TreeSegment* segment, const Lan
     }
 
     print_to_buffer(&(context->buffer), "; Saving memory stack pointer\n"
-                            "push rpx       ; Save old stack pointr\n"
-                            "push rpx\n"
-                            "push %lu\n"
-                            "add\n"
-                            "pop rpx\n", RAM_Table->Pointer);
+                                        "push rpx       ; Save old stack pointr\n"
+                                        "push rpx       ; Calculate new stack pointer\n"    
+                                        "push %lu\n"
+                                        "add\n"
+                                        "pop rpx\n", RAM_Table->Pointer);
 
-    print_to_buffer(&(context->buffer), "call Function_%lu\n", segment->right->data.Id);
+    print_to_buffer(&(context->buffer), "; call function with name: \"%s\"\n"
+                                        "call Function_%lu\n", find_in_name_table_by_code(&(table_array->Array[0]), segment->right->data.Id), 
+                                        segment->right->data.Id);
 
     if (segment->parent->data.K_word != KEY_NEXT)
     {
@@ -250,7 +249,7 @@ static langErrorCode compile_parameters_in_call(const TreeSegment* segment, cons
     assert(RAM_Table);
     assert(context);
 
-    langErrorCode error = NO_LANG_ERRORS; // BUG параметры должны быть уже определены и находиться в RAM_Table
+    langErrorCode error = NO_LANG_ERRORS;
     print_to_buffer(&(context->buffer), "; Compile parameter\n");
     if ((error = lang_compiler_recursive(segment->left, table_array, RAM_Table, context)))
     {
@@ -282,7 +281,7 @@ static langErrorCode compile_function_definition(const TreeSegment* segment, con
 
     const char* function_name = find_in_name_table_by_code(&(table_array->Array[0]), segment->data.Id);
 
-    print_to_buffer(&(context->buffer), "\n\n; Function declaration with name: %s\n", function_name);
+    print_to_buffer(&(context->buffer), "\n; Function declaration with name: \"%s\"\n", function_name);
 
     if (!strcmp("главная", function_name))
     {
@@ -300,7 +299,7 @@ static langErrorCode compile_function_definition(const TreeSegment* segment, con
         print_to_buffer(&(context->buffer), "; Save old rpx value in rbx\n"
                                             "pop rbx\n"
                                             "; Accepting parameners\n");
-        if ((error = compile_parameters_in_definition(parameter_segment->left, find_name_table(table_array, segment->right->data.Id), &RAM_Table, context)))
+        if ((error = compile_parameters_in_definition(parameter_segment->left, find_name_table(table_array, context->current_function), &RAM_Table, context)))
         {
             return error;
         }
@@ -333,7 +332,7 @@ static langErrorCode compile_parameters_in_definition(const TreeSegment* segment
     {
         return error;
     }
-    print_to_buffer(&(context->buffer), "; Parameter declaration with name: %s\n", find_in_name_table_by_code(name_table, segment->left->left->data.Id));
+    print_to_buffer(&(context->buffer), "; Parameter declaration with name: \"%s\"\n", find_in_name_table_by_code(name_table, segment->left->left->data.Id));
     print_to_buffer(&(context->buffer), "pop [rpx+%lu]\n", RAM_Table->Pointer - 1);
 
     if (segment->right)
@@ -367,7 +366,8 @@ static langErrorCode compile_var_declaration(const TreeSegment* segment, const L
         return error;
     }
 
-    print_to_buffer(&(context->buffer), "; Defined variable with name: %s\n", find_in_name_table_by_code(&(table_array->Array[0]), segment->right->data.Id));
+    print_to_buffer(&(context->buffer), "; Defined variable with name: \"%s\"\n", find_in_name_table_by_code(find_name_table(table_array, context->current_function),
+                                        segment->data.Id));
 
     if (segment->right->type == IDENTIFIER)
     {
@@ -470,8 +470,9 @@ static langErrorCode compile_keyword(const TreeSegment* segment, const LangNameT
 
     langErrorCode error = NO_LANG_ERRORS;
 
-    size_t temp_scope_counter = 0;
-    size_t var_offset         = 0;
+    size_t temp_scope_counter         = 0;
+    size_t var_offset                 = 0;
+    LangNameTable* current_name_table = nullptr;
 
     switch ((size_t) segment->data.K_word)
     {
@@ -480,27 +481,30 @@ static langErrorCode compile_keyword(const TreeSegment* segment, const LangNameT
     ADD_ZERO_BRANCH_COMMAND(KEY_BREAK,          "",               print_to_buffer(&(context->buffer), "jmp Skip_scope_%lu     ; Break\n", context->last_while_scope););
     ADD_ZERO_BRANCH_COMMAND(KEY_CONTINUE,       "",               print_to_buffer(&(context->buffer), "jmp While_next_%lu     ; Continue\n", context->last_while_scope););
 
-    ADD_LEFT_BRANCH_COMMAND(KEY_ASSIGMENT, "",
+    ADD_LEFT_BRANCH_COMMAND(KEY_ASSIGMENT,      "",
                             if (((var_offset = find_in_RAM_table(RAM_Table, segment->right->data.Id))) == (size_t) -1)
                             {
                                 var_offset = find_in_RAM_table(&(context->global_RAM_Table), segment->right->data.Id);
-                                print_to_buffer(&(context->buffer), "pop [%lu]\n", var_offset);
+                                print_to_buffer(&(context->buffer), "pop [%lu]      ; Global variable with name: \"%s\"\n", var_offset,
+                                find_in_name_table_by_code(&(table_array->Array[0]), segment->right->data.Id));
                                 break;
                             }
-                            print_to_buffer(&(context->buffer), "pop [rpx+%lu]\n", var_offset););
+                            current_name_table = find_name_table(table_array, context->current_function);
+                            print_to_buffer(&(context->buffer), "pop [rpx+%lu]  ; Variable with name: \"%s\"\n", var_offset,
+                            find_in_name_table_by_code(current_name_table, segment->right->data.Id)););
 
     ADD_RIGHT_BRANCH_COMMAND(KEY_OUT,           "; Print function\n",  print_to_buffer(&(context->buffer), "out\n"););
     ADD_RIGHT_BRANCH_COMMAND(KEY_SIN,           "; Print sin\n",       print_to_buffer(&(context->buffer), "sin\n"););
     ADD_RIGHT_BRANCH_COMMAND(KEY_COS,           "; Print cos\n",       print_to_buffer(&(context->buffer), "cos\n"););
     ADD_RIGHT_BRANCH_COMMAND(KEY_RETURN,        "; Return\n",          print_to_buffer(&(context->buffer), "pop rax\n"
-                                                                                               "pop rpx\n"
-                                                                                               "ret\n"););
+                                                                                                           "pop rpx\n"
+                                                                                                           "ret\n"););
     
     ADD_DOUBLE_BRANCH_COMMAND(KEY_NEXT,         "",                    ;);
-    ADD_DOUBLE_BRANCH_COMMAND(KEY_PLUS,         "; Print summ node\n", print_to_buffer(&(context->buffer), "add\n"););
-    ADD_DOUBLE_BRANCH_COMMAND(KEY_MINUS,        "; Print summ node\n", print_to_buffer(&(context->buffer), "sub\n"););
-    ADD_DOUBLE_BRANCH_COMMAND(KEY_MUL,          "; Print summ node\n", print_to_buffer(&(context->buffer), "mul\n"););
-    ADD_DOUBLE_BRANCH_COMMAND(KEY_DIV,          "; Print summ node\n", print_to_buffer(&(context->buffer), "div\n"););
+    ADD_DOUBLE_BRANCH_COMMAND(KEY_PLUS,         "", print_to_buffer(&(context->buffer), "add\n"););
+    ADD_DOUBLE_BRANCH_COMMAND(KEY_MINUS,        "", print_to_buffer(&(context->buffer), "sub\n"););
+    ADD_DOUBLE_BRANCH_COMMAND(KEY_MUL,          "", print_to_buffer(&(context->buffer), "mul\n"););
+    ADD_DOUBLE_BRANCH_COMMAND(KEY_DIV,          "", print_to_buffer(&(context->buffer), "div\n"););
 
     ADD_DOUBLE_BRANCH_COMMAND(KEY_MORE,         "",                    print_to_buffer(&(context->buffer), "jbe Skip_scope_%lu\n", context->scope_counter););
     ADD_DOUBLE_BRANCH_COMMAND(KEY_MORE_EQUAL,   "",                    print_to_buffer(&(context->buffer), "jb Skip_scope_%lu\n",  context->scope_counter););

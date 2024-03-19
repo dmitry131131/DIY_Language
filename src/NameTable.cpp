@@ -163,7 +163,7 @@ LangNameTable* find_name_table(const LangNameTableArray* table_array, size_t num
 {
     assert(table_array);
 
-    for (size_t i = 0; i < table_array->size; i++)
+    for (size_t i = 0; i <= table_array->size; i++)
     {
         if (table_array->Array[i].table_number == number)
         {
@@ -245,7 +245,8 @@ static langErrorCode write_dot_body(outputBuffer* buffer, const LangNameTableArr
     assert(buffer);
     assert(table_array);
 
-    print_to_buffer(buffer, "0 [shape = Mrecord, style = filled, fillcolor = \"#FFF5EE\", color = \"#800000\", label = \" {№ | ID | TYPE | NAME} ");
+    print_to_buffer(buffer, "0 [shape = Mrecord, style = filled, fillcolor = \"#FFF5EE\", color = \"#800000\", label = \" {№: %lu | ID | TYPE | NAME} ",
+    table_array->Array[0].table_number);
 
     size_t current_number                     = 0;
     char*  current_name                       = nullptr;
@@ -273,8 +274,8 @@ static langErrorCode write_func_table(outputBuffer* buffer, const LangNameTable*
     assert(buffer);
     assert(table);
 
-    print_to_buffer(buffer, "%lu [shape = Mrecord, style = filled, fillcolor = \"#FFF5EE\", color = \"#800000\", label = \" {№ | ID | TYPE | NAME} ",
-    table->table_number);
+    print_to_buffer(buffer, "%lu [shape = Mrecord, style = filled, fillcolor = \"#FFF5EE\", color = \"#800000\", label = \" {№: %lu | ID | TYPE | NAME} ",
+    table->table_number, table->table_number);
 
     size_t current_number                     = 0;
     char*  current_name                       = nullptr;
