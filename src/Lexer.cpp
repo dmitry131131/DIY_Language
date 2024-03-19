@@ -10,6 +10,8 @@
 #include "FrontEnd.h"
 #include "Lexer.h"
 
+// BUG Проблема с парсингом имён с числами
+
 static langErrorCode read_lang_punct_command(outputBuffer* buffer, LangToken* token);
 static langErrorCode read_lang_text_command(outputBuffer* buffer, LangToken* token);
 
